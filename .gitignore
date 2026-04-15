@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# Local build and release artifacts
+.artifacts/
+dist/
+*.dmg
+*.app
+
+# Xcode user files
+DerivedData/
+*.xcworkspace
+*.xcodeproj/project.xcworkspace/
+xcuserdata/
+*.xcuserstate
+
+# Local tool state
+.claude/
