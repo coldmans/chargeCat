@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import SwiftUI
 
 @MainActor
@@ -11,6 +12,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var batteryStatusMenuItem: NSMenuItem?
     private var powerModeMenuItem: NSMenuItem?
+    private var openSettingsMenuItem: NSMenuItem?
+    private var previewMenuItem: NSMenuItem?
+    private var quitMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -31,7 +35,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
         configureStatusItem()
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleGetURLEvent(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
         batteryMonitor.start()
+        model.start()
         presentInitialWindow()
     }
 
@@ -71,6 +82,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.refreshPowerMode()
     }
 
+    @objc
+    private func handleGetURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent _: NSAppleEventDescriptor) {
+        guard let urlString = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
+              let url = URL(string: urlString) else {
+            return
+        }
+
+        model.handleExternalURL(url)
+        openSettings()
+    }
+
     private func presentInitialWindow() {
         guard UserSettings.hasCompletedOnboarding == false else {
             openSettings()
@@ -93,35 +115,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.image = AssetImage.menuBar(for: model.latestBattery)
         statusItem.button?.imagePosition = .imageLeading
         statusItem.button?.font = .monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
-        statusItem.button?.toolTip = "Charge Cat"
+        statusItem.button?.toolTip = model.copy.appName
 
         let menu = NSMenu()
         let batteryStatusMenuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         batteryStatusMenuItem.isEnabled = false
         let powerModeMenuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         powerModeMenuItem.isEnabled = false
+        let openSettingsMenuItem = NSMenuItem(title: model.copy.openSettings, action: #selector(openSettings), keyEquivalent: ",")
+        let previewMenuItem = NSMenuItem(title: model.copy.previewAnimation, action: #selector(playPreviewAnimation), keyEquivalent: "p")
+        let quitMenuItem = NSMenuItem(title: model.copy.quit, action: #selector(quitApp), keyEquivalent: "q")
         menu.addItem(batteryStatusMenuItem)
         menu.addItem(powerModeMenuItem)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Open Settings", action: #selector(openSettings), keyEquivalent: ","))
-        menu.addItem(NSMenuItem(title: "Preview Animation", action: #selector(playPreviewAnimation), keyEquivalent: "p"))
+        menu.addItem(openSettingsMenuItem)
+        menu.addItem(previewMenuItem)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q"))
+        menu.addItem(quitMenuItem)
         menu.items.forEach { $0.target = self }
 
         statusItem.menu = menu
         self.statusItem = statusItem
         self.batteryStatusMenuItem = batteryStatusMenuItem
         self.powerModeMenuItem = powerModeMenuItem
+        self.openSettingsMenuItem = openSettingsMenuItem
+        self.previewMenuItem = previewMenuItem
+        self.quitMenuItem = quitMenuItem
         updateStatusItem()
     }
 
     private func updateStatusItem() {
         statusItem?.button?.image = AssetImage.menuBar(for: model.latestBattery)
         statusItem?.button?.title = model.menuBarBatteryText.map { " \($0)" } ?? ""
-        statusItem?.button?.toolTip = "Charge Cat • \(model.menuBarStatusText)"
+        statusItem?.button?.toolTip = "\(model.copy.appName) • \(model.menuBarStatusText)"
         batteryStatusMenuItem?.title = model.menuBarStatusText
-        powerModeMenuItem?.title = "Power Mode • \(model.currentPowerMode.title)"
+        powerModeMenuItem?.title = model.copy.powerModeMenuTitle(for: model.currentPowerMode)
+        openSettingsMenuItem?.title = model.copy.openSettings
+        previewMenuItem?.title = model.copy.previewAnimation
+        quitMenuItem?.title = model.copy.quit
     }
 }
 

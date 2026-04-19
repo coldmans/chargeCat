@@ -1,0 +1,11 @@
+{
+  "storeID": 0,
+  "productID": 0,
+  "variantID": 0,
+  "checkoutURL": "",
+  "backendBaseURL": "",
+  "myOrdersURL": "https://app.lemonsqueezy.com/my-orders",
+  "supportURL": "https://github.com/coldmans/chargeCat/issues",
+  "productName": "Charge Cat Pro",
+  "variantName": "Lifetime"
+}

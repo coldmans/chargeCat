@@ -36,6 +36,7 @@ struct ControlPanelView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 28) {
                         CornerPreviewView(
+                            language: model.appLanguage,
                             side: model.preferredSide,
                             asset: model.selectedAnimationAsset,
                             previewLevel: Binding(
@@ -43,6 +44,7 @@ struct ControlPanelView: View {
                                 set: { model.previewBatteryLevel = $0 }
                             )
                         )
+                        ProSection(model: model)
                         ControlsSection(model: model)
                         LiveStatusSection(model: model)
                     }
@@ -56,27 +58,37 @@ struct ControlPanelView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Text("v1.0")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Palette.ink.opacity(0.08), in: Capsule())
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        Text(model.copy.versionBadge)
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Palette.ink.opacity(0.08), in: Capsule())
 
-                Text("Charge Cat")
-                    .font(.system(size: 32, weight: .black, design: .rounded))
-                    .foregroundStyle(Palette.ink)
+                        Text(model.copy.appName)
+                            .font(.system(size: 32, weight: .black, design: .rounded))
+                            .foregroundStyle(Palette.ink)
+                    }
+
+                    Text(model.copy.panelHeadline)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(Palette.ink.opacity(0.72))
+
+                    Text(model.copy.panelSubheadline)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Palette.coral)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 2)
+                }
+
+                Spacer(minLength: 12)
+
+                LanguageToggle(currentLanguage: model.appLanguage) { language in
+                    model.updateAppLanguage(language)
+                }
             }
-
-            Text("A tiny ritual for the moment your Mac starts charging.")
-                .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundStyle(Palette.ink.opacity(0.72))
-
-            Text("Pick a corner, tune the mood, and preview the cat before the next real power event.")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(Palette.coral)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 2)
         }
     }
 }

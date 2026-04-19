@@ -40,11 +40,12 @@ chmod +x "${APP_BUNDLE}/Contents/MacOS/Charge Cat"
 # 4. Copy resources
 cp -R "${RESOURCE_SOURCE_DIR}/Sounds" "${APP_BUNDLE}/Contents/Resources/"
 cp -R "${RESOURCE_SOURCE_DIR}/Animations" "${APP_BUNDLE}/Contents/Resources/"
+cp "${RESOURCE_SOURCE_DIR}/licensing-config.json" "${APP_BUNDLE}/Contents/Resources/licensing-config.json"
 cp "${RESOURCE_SOURCE_DIR}/Assets.xcassets/AppIcon.imageset/appicon-1024.png" \
   "${APP_BUNDLE}/Contents/Resources/AppIcon.png"
 cp "${RESOURCE_SOURCE_DIR}/Assets.xcassets/MenuBarIcon.imageset/menubar-36.png" \
   "${APP_BUNDLE}/Contents/Resources/MenuBarIcon.png"
-echo "    Copied sounds, animations, and icons"
+echo "    Copied sounds, animations, licensing config, and icons"
 
 # 5. Create Info.plist
 cat > "${APP_BUNDLE}/Contents/Info.plist" <<PLIST
@@ -78,12 +79,30 @@ cat > "${APP_BUNDLE}/Contents/Info.plist" <<PLIST
     <true/>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.utilities</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLName</key>
+            <string>com.coldmans.charge-cat.checkout</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>chargecat</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>
 PLIST
 
 # 6. Create PkgInfo
 echo -n "APPL????" > "${APP_BUNDLE}/Contents/PkgInfo"
+
+echo "==> Signing app bundle..."
+SIGNING_IDENTITY="${CODESIGN_IDENTITY:--}"
+codesign --force --deep --sign "${SIGNING_IDENTITY}" "${APP_BUNDLE}"
+echo "    Signed with: ${SIGNING_IDENTITY}"
 
 echo "==> Creating DMG..."
 

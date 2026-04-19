@@ -4,6 +4,20 @@ import Foundation
 enum UserSettings {
     private static let defaults = UserDefaults.standard
 
+    static var appLanguage: AppLanguage {
+        get {
+            guard let rawValue = defaults.string(forKey: "appLanguage"),
+                  let language = AppLanguage(rawValue: rawValue)
+            else {
+                return .korean
+            }
+            return language
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: "appLanguage")
+        }
+    }
+
     static var preferredSide: ScreenSide {
         get {
             guard let rawValue = defaults.string(forKey: "preferredSide"),
@@ -20,12 +34,16 @@ enum UserSettings {
 
     static var selectedAnimationAsset: OverlayAnimationAsset {
         get {
-            guard let rawValue = defaults.string(forKey: "selectedAnimationAsset"),
-                  let asset = OverlayAnimationAsset(rawValue: rawValue)
-            else {
+            guard let rawValue = defaults.string(forKey: "selectedAnimationAsset") else {
                 return .catDoor
             }
-            return asset
+
+            if rawValue == "doorCatHD" {
+                defaults.set(OverlayAnimationAsset.catDoor.rawValue, forKey: "selectedAnimationAsset")
+                return .catDoor
+            }
+
+            return OverlayAnimationAsset(rawValue: rawValue) ?? .catDoor
         }
         set {
             defaults.set(newValue.rawValue, forKey: "selectedAnimationAsset")

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct CornerPreviewView: View {
+    let language: AppLanguage
     let side: ScreenSide
     let asset: OverlayAnimationAsset
     @Binding var previewLevel: Double
@@ -20,7 +21,7 @@ struct CornerPreviewView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Corner Preview")
+                Text(AppCopy(language: language).cornerPreview)
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(Palette.ink)
                 Spacer()

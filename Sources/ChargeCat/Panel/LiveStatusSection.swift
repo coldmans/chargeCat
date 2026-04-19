@@ -5,7 +5,7 @@ struct LiveStatusSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Live Status")
+            Text(model.copy.liveStatus)
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundStyle(Palette.ink)
                 .padding(.horizontal, 4)
@@ -15,7 +15,7 @@ struct LiveStatusSection: View {
                     HStack(spacing: 8) {
                         StatusBadge(
                             icon: latestBattery.isPluggedIn ? "bolt.fill" : "battery.50",
-                            text: latestBattery.powerText,
+                            text: model.copy.powerText(for: latestBattery),
                             tint: latestBattery.isPluggedIn ? Palette.amber : Palette.coral
                         )
                         StatusBadge(
@@ -25,7 +25,7 @@ struct LiveStatusSection: View {
                         )
                         StatusBadge(
                             icon: "powerplug",
-                            text: model.currentPowerMode.title,
+                            text: model.copy.title(for: model.currentPowerMode),
                             tint: Palette.ink
                         )
                     }
@@ -33,7 +33,7 @@ struct LiveStatusSection: View {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(Palette.amber)
-                        Text("No battery data detected yet.")
+                        Text(model.copy.noBatteryDataDetectedYet)
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundStyle(Palette.ink.opacity(0.6))
                     }
@@ -41,7 +41,7 @@ struct LiveStatusSection: View {
 
                     StatusBadge(
                         icon: "powerplug",
-                        text: model.currentPowerMode.title,
+                        text: model.copy.title(for: model.currentPowerMode),
                         tint: Palette.ink
                     )
                 }

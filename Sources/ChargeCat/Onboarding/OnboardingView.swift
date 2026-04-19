@@ -20,27 +20,34 @@ struct OnboardingView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 20) {
+                HStack {
+                    Spacer()
+                    LanguageToggle(currentLanguage: model.appLanguage) { language in
+                        model.updateAppLanguage(language)
+                    }
+                }
+
                 GIFAnimationView(
                     asset: .catDoor,
                     frameIndex: GIFAsset.catDoor.onboardingFrame
                 )
                 .frame(width: onboardingGIFSize.width, height: onboardingGIFSize.height)
 
-                Text("Charge Cat is ready.")
+                Text(model.copy.onboardingTitle)
                     .font(.system(size: 28, weight: .black, design: .rounded))
                     .foregroundStyle(Palette.ink)
 
-                Text("Plug in your Mac and a tiny cat will step out to say hello.")
+                Text(model.copy.onboardingSubtitle)
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(Palette.ink.opacity(0.72))
                     .multilineTextAlignment(.center)
 
-                Toggle("Launch at Login", isOn: $launchAtLoginEnabled)
+                Toggle(model.copy.launchAtLogin, isOn: $launchAtLoginEnabled)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .toggleStyle(.switch)
                     .padding(.top, 4)
 
-                Button("Get Started") {
+                Button(model.copy.getStarted) {
                     model.completeOnboarding(launchAtLoginEnabled: launchAtLoginEnabled)
                     onStart()
                 }

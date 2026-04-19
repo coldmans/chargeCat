@@ -1,17 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Charge Cat — Your Mac has a cat now.</title>
-  <meta name="description" content="A tiny cat peeks out from a little door every time you plug in your charger. A 2-second dose of joy for your Mac.">
-  <meta property="og:title" content="Charge Cat — Your Mac has a cat now.">
-  <meta property="og:description" content="A tiny cat peeks out every time you plug in your charger.">
+  <title>Charge Cat — 맥에 작은 고양이가 산다</title>
+  <meta name="description" content="충전기를 꽂을 때마다 작은 문에서 고양이가 빼꼼 나타나요. 하루에 2초, 귀여움 한 스푼.">
+  <meta property="og:title" content="Charge Cat — 맥에 작은 고양이가 산다">
+  <meta property="og:description" content="충전기를 꽂을 때마다 작은 문에서 고양이가 빼꼼 나타나요.">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -27,16 +28,51 @@
       --screen-edge: #3b424f;
     }
 
-    html {
-      scroll-behavior: smooth;
-    }
+    html { scroll-behavior: smooth; }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
       background: var(--paper);
       color: var(--ink);
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Language toggle (좌측 상단 고정) ── */
+    .lang-switch {
+      position: fixed;
+      top: 18px;
+      left: 24px;
+      z-index: 200;
+      display: inline-flex;
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 999px;
+      padding: 4px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+    }
+    .lang-switch button {
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 6px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      color: var(--ink);
+      opacity: 0.55;
+      transition: background 0.2s, opacity 0.2s, color 0.2s;
+    }
+    .lang-switch button:hover { opacity: 0.9; }
+    .lang-switch button.is-active {
+      background: linear-gradient(135deg, var(--amber), var(--coral));
+      color: white;
+      opacity: 1;
+      box-shadow: 0 2px 8px rgba(227,117,95,0.3);
     }
 
     /* ── Nav ── */
@@ -46,7 +82,7 @@
       left: 0;
       right: 0;
       z-index: 100;
-      padding: 16px 32px;
+      padding: 16px 32px 16px 120px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -64,10 +100,7 @@
       align-items: center;
       gap: 8px;
     }
-
-    .nav-logo span {
-      font-size: 22px;
-    }
+    .nav-logo span { font-size: 22px; }
 
     .nav-links {
       display: flex;
@@ -75,7 +108,6 @@
       align-items: center;
       list-style: none;
     }
-
     .nav-links a {
       text-decoration: none;
       color: var(--ink);
@@ -84,10 +116,7 @@
       opacity: 0.7;
       transition: opacity 0.2s;
     }
-
-    .nav-links a:hover {
-      opacity: 1;
-    }
+    .nav-links a:hover { opacity: 1; }
 
     .nav-cta {
       background: linear-gradient(135deg, var(--amber), var(--coral));
@@ -100,7 +129,6 @@
       transition: transform 0.2s, box-shadow 0.2s !important;
       box-shadow: 0 4px 16px rgba(227,117,95,0.25);
     }
-
     .nav-cta:hover {
       transform: translateY(-1px);
       box-shadow: 0 6px 24px rgba(227,117,95,0.35);
@@ -118,26 +146,20 @@
       position: relative;
       overflow: hidden;
     }
-
     .hero::before {
       content: '';
       position: absolute;
-      top: -200px;
-      right: -200px;
-      width: 600px;
-      height: 600px;
+      top: -200px; right: -200px;
+      width: 600px; height: 600px;
       background: radial-gradient(circle, var(--peach) 0%, transparent 70%);
       opacity: 0.4;
       pointer-events: none;
     }
-
     .hero::after {
       content: '';
       position: absolute;
-      bottom: -100px;
-      left: -150px;
-      width: 400px;
-      height: 400px;
+      bottom: -100px; left: -150px;
+      width: 400px; height: 400px;
       background: radial-gradient(circle, var(--amber) 0%, transparent 70%);
       opacity: 0.15;
       pointer-events: none;
@@ -155,11 +177,9 @@
       border-radius: 100px;
       margin-bottom: 24px;
     }
-
     .badge::before {
       content: '';
-      width: 6px;
-      height: 6px;
+      width: 6px; height: 6px;
       background: var(--coral);
       border-radius: 50%;
     }
@@ -168,11 +188,10 @@
       font-size: clamp(42px, 6vw, 72px);
       font-weight: 900;
       letter-spacing: -0.03em;
-      line-height: 1.1;
-      max-width: 700px;
+      line-height: 1.15;
+      max-width: 720px;
       margin-bottom: 20px;
     }
-
     h1 .highlight {
       background: linear-gradient(135deg, var(--amber), var(--coral));
       -webkit-background-clip: text;
@@ -185,9 +204,9 @@
       font-weight: 500;
       color: var(--ink);
       opacity: 0.65;
-      max-width: 500px;
+      max-width: 540px;
       margin-bottom: 40px;
-      line-height: 1.5;
+      line-height: 1.55;
     }
 
     .hero-actions {
@@ -215,7 +234,6 @@
       border: none;
       cursor: pointer;
     }
-
     .btn-primary:hover {
       transform: translateY(-2px);
       box-shadow: 0 12px 40px rgba(227,117,95,0.4);
@@ -236,10 +254,14 @@
       transition: transform 0.2s, border-color 0.2s;
       cursor: pointer;
     }
-
     .btn-secondary:hover {
       transform: translateY(-1px);
       border-color: rgba(0,0,0,0.15);
+    }
+
+    .is-disabled {
+      opacity: 0.45;
+      pointer-events: none;
     }
 
     .hero-meta {
@@ -250,13 +272,12 @@
       margin-top: 8px;
     }
 
-    /* ── Demo mockup ── */
+    /* ── Demo ── */
     .demo-section {
       max-width: 840px;
       margin: 0 auto;
       padding: 0 24px 100px;
     }
-
     .demo-window {
       background: linear-gradient(145deg, var(--screen), var(--screen-edge));
       border-radius: 20px;
@@ -265,249 +286,63 @@
       overflow: hidden;
       box-shadow: 0 32px 80px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.05) inset;
     }
-
     .demo-dots {
       position: absolute;
-      top: 16px;
-      left: 20px;
+      top: 16px; left: 20px;
       display: flex;
       gap: 7px;
     }
-
     .demo-dots span {
-      width: 10px;
-      height: 10px;
+      width: 10px; height: 10px;
       border-radius: 50%;
       background: rgba(255,255,255,0.15);
     }
-
     .demo-content {
       display: flex;
       align-items: flex-end;
       justify-content: flex-start;
-      min-height: 200px;
+      min-height: 280px;
       position: relative;
     }
 
-    /* ── Cat animation in demo ── */
-    .cat-scene {
-      position: relative;
-      width: 180px;
-      height: 160px;
+    .demo-cat {
+      width: clamp(180px, 28vw, 260px);
+      height: auto;
+      display: block;
+      image-rendering: -webkit-optimize-contrast;
+      filter: drop-shadow(0 14px 24px rgba(0,0,0,0.35));
+      animation: catFloat 5s ease-in-out infinite;
     }
 
-    .door-frame {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 58px;
-      height: 88px;
-      background: var(--cocoa);
-      border-radius: 14px;
-    }
-
-    .door-portal {
-      position: absolute;
-      bottom: 0;
-      left: 3px;
-      width: 52px;
-      height: 82px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.15), var(--amber), var(--coral));
-      border-radius: 12px;
-      opacity: 0.8;
-    }
-
-    .door-panel {
-      position: absolute;
-      bottom: 0;
-      left: 2px;
-      width: 54px;
-      height: 84px;
-      background: linear-gradient(135deg, var(--amber), var(--coral));
-      border-radius: 13px;
-      transform-origin: left center;
-      animation: doorSwing 4s ease-in-out infinite;
-    }
-
-    .door-knob {
-      position: absolute;
-      right: 6px;
-      top: 50%;
-      width: 5px;
-      height: 5px;
-      background: var(--cream);
-      border-radius: 50%;
-    }
-
-    .cat-body {
-      position: absolute;
-      bottom: 8px;
-      left: 20px;
-      animation: catPeek 4s ease-in-out infinite;
-    }
-
-    .cat-torso {
-      width: 52px;
-      height: 40px;
-      background: var(--amber);
-      border-radius: 50%;
-      position: relative;
-    }
-
-    .cat-belly {
-      position: absolute;
-      bottom: 2px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 34px;
-      height: 22px;
-      background: var(--peach);
-      border-radius: 50%;
-    }
-
-    .cat-head {
-      width: 36px;
-      height: 36px;
-      background: var(--amber);
-      border-radius: 50%;
-      position: absolute;
-      top: -24px;
-      left: 6px;
-      animation: catBow 4s ease-in-out infinite;
-    }
-
-    .cat-ear {
-      position: absolute;
-      top: -6px;
-      width: 0;
-      height: 0;
-      border-left: 6px solid transparent;
-      border-right: 6px solid transparent;
-      border-bottom: 10px solid var(--amber);
-    }
-
-    .cat-ear-l { left: 3px; transform: rotate(-10deg); }
-    .cat-ear-r { right: 3px; transform: rotate(10deg); }
-
-    .cat-eye {
-      position: absolute;
-      top: 12px;
-      width: 5px;
-      height: 3px;
-      background: var(--cocoa);
-      border-radius: 50%;
-    }
-
-    .cat-eye-l { left: 8px; }
-    .cat-eye-r { right: 8px; }
-
-    .cat-nose {
-      position: absolute;
-      top: 18px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 3px;
-      height: 3px;
-      background: var(--cocoa);
-      border-radius: 50%;
-    }
-
-    .cat-mouth {
-      position: absolute;
-      top: 21px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 14px;
-      height: 6px;
-      border: 2px solid var(--cocoa);
-      border-top: none;
-      border-radius: 0 0 8px 8px;
-      animation: catSmile 4s ease-in-out infinite;
-    }
-
-    .cat-tail {
-      position: absolute;
-      bottom: 20px;
-      right: -20px;
-      width: 30px;
-      height: 40px;
-      border: 6px solid var(--cocoa);
-      border-left: none;
-      border-bottom: none;
-      border-radius: 0 20px 0 0;
-      animation: tailWag 2s ease-in-out infinite;
-    }
-
-    .cat-paws {
-      position: absolute;
-      bottom: -4px;
-      left: 8px;
-      display: flex;
-      gap: 6px;
-    }
-
-    .cat-paw {
-      width: 10px;
-      height: 6px;
-      background: var(--cocoa);
-      border-radius: 5px;
-    }
-
-    @keyframes doorSwing {
-      0%, 100% { transform: perspective(200px) rotateY(-85deg); }
-      15%, 70% { transform: perspective(200px) rotateY(-15deg); }
-    }
-
-    @keyframes catPeek {
-      0%, 100% { transform: translateX(-30px); opacity: 0; }
-      12%, 75% { transform: translateX(36px); opacity: 1; }
-      85% { transform: translateX(-10px); opacity: 0.5; }
-    }
-
-    @keyframes catBow {
-      0%, 30%, 100% { transform: rotate(0deg); }
-      38%, 48% { transform: rotate(15deg); }
-    }
-
-    @keyframes catSmile {
-      0%, 30%, 100% { transform: translateX(-50%) scaleY(0.5); }
-      38%, 70% { transform: translateX(-50%) scaleY(1); }
-    }
-
-    @keyframes tailWag {
-      0%, 100% { transform: rotate(-5deg); }
-      50% { transform: rotate(10deg); }
+    @keyframes catFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
     }
 
     .demo-label {
       position: absolute;
-      bottom: 0;
-      right: 0;
+      bottom: 0; right: 0;
       color: rgba(255,255,255,0.3);
       font-size: 13px;
       font-weight: 600;
     }
-
     .demo-bolt {
       position: absolute;
-      top: 20px;
-      right: 24px;
+      top: 20px; right: 24px;
       font-size: 32px;
       animation: boltPulse 2s ease-in-out infinite;
     }
-
     @keyframes boltPulse {
       0%, 100% { opacity: 0.3; transform: scale(1); }
       50% { opacity: 0.7; transform: scale(1.1); }
     }
 
-    /* ── How it works ── */
+    /* ── How ── */
     .how {
       max-width: 900px;
       margin: 0 auto;
       padding: 80px 24px 100px;
     }
-
     .section-title {
       font-size: 14px;
       font-weight: 700;
@@ -516,20 +351,18 @@
       letter-spacing: 0.08em;
       margin-bottom: 12px;
     }
-
     .section-heading {
       font-size: clamp(28px, 4vw, 40px);
       font-weight: 900;
       letter-spacing: -0.02em;
       margin-bottom: 48px;
+      line-height: 1.2;
     }
-
     .steps {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 32px;
     }
-
     .step {
       background: white;
       border-radius: 20px;
@@ -537,29 +370,22 @@
       border: 1px solid rgba(0,0,0,0.04);
       transition: transform 0.2s, box-shadow 0.2s;
     }
-
     .step:hover {
       transform: translateY(-4px);
       box-shadow: 0 16px 48px rgba(0,0,0,0.06);
     }
-
-    .step-icon {
-      font-size: 36px;
-      margin-bottom: 16px;
-    }
-
+    .step-icon { font-size: 36px; margin-bottom: 16px; }
     .step h3 {
       font-size: 18px;
       font-weight: 800;
       margin-bottom: 8px;
       letter-spacing: -0.01em;
     }
-
     .step p {
       font-size: 14px;
       color: var(--ink);
       opacity: 0.6;
-      line-height: 1.5;
+      line-height: 1.55;
     }
 
     /* ── Install ── */
@@ -568,7 +394,6 @@
       margin: 0 auto;
       padding: 0 24px 100px;
     }
-
     .install-card {
       background: var(--screen);
       border-radius: 20px;
@@ -577,44 +402,36 @@
       position: relative;
       overflow: hidden;
     }
-
     .install-card::after {
       content: '';
       position: absolute;
-      top: -50px;
-      right: -50px;
-      width: 200px;
-      height: 200px;
+      top: -50px; right: -50px;
+      width: 200px; height: 200px;
       background: radial-gradient(circle, var(--amber) 0%, transparent 70%);
       opacity: 0.1;
       pointer-events: none;
     }
-
     .install-card h2 {
       font-size: 24px;
       font-weight: 800;
       margin-bottom: 8px;
     }
-
     .install-card p {
       font-size: 14px;
       opacity: 0.5;
       margin-bottom: 24px;
     }
-
     .install-methods {
       display: flex;
       flex-direction: column;
       gap: 16px;
     }
-
     .install-method {
       background: rgba(255,255,255,0.06);
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 14px;
       padding: 20px 24px;
     }
-
     .install-method-label {
       font-size: 12px;
       font-weight: 700;
@@ -623,20 +440,17 @@
       opacity: 0.4;
       margin-bottom: 10px;
     }
-
     .install-cmd {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
     }
-
     .install-cmd code {
       font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
       font-size: 14px;
       color: var(--amber);
     }
-
     .copy-btn {
       background: rgba(255,255,255,0.1);
       border: none;
@@ -649,16 +463,11 @@
       transition: background 0.2s;
       white-space: nowrap;
     }
-
-    .copy-btn:hover {
-      background: rgba(255,255,255,0.18);
-    }
-
+    .copy-btn:hover { background: rgba(255,255,255,0.18); }
     .copy-btn.copied {
       background: rgba(76,175,80,0.3);
       color: #81c784;
     }
-
     .install-or {
       text-align: center;
       font-size: 12px;
@@ -667,15 +476,49 @@
       text-transform: uppercase;
       letter-spacing: 0.1em;
     }
-
-    .install-download {
-      text-align: center;
-    }
-
+    .install-download { text-align: center; }
     .install-download .btn-primary {
       font-size: 14px;
       padding: 12px 28px;
       display: inline-flex;
+    }
+
+    .pro-strip {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 0 24px 100px;
+    }
+    .pro-card {
+      background: linear-gradient(145deg, rgba(237,158,79,0.13), rgba(227,117,95,0.14));
+      border-radius: 20px;
+      padding: 32px;
+      border: 1px solid rgba(46,38,33,0.08);
+      box-shadow: 0 18px 48px rgba(0,0,0,0.05);
+    }
+    .pro-card h3 {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+    }
+    .pro-card p {
+      font-size: 14px;
+      opacity: 0.72;
+      max-width: 560px;
+      margin-bottom: 18px;
+      line-height: 1.55;
+    }
+    .pro-actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .pro-note {
+      font-size: 12px;
+      font-weight: 600;
+      opacity: 0.46;
     }
 
     /* ── Features ── */
@@ -684,36 +527,28 @@
       margin: 0 auto;
       padding: 0 24px 100px;
     }
-
     .feature-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 20px;
     }
-
     .feature {
       background: white;
       border-radius: 18px;
       padding: 28px;
       border: 1px solid rgba(0,0,0,0.04);
     }
-
-    .feature-icon {
-      font-size: 28px;
-      margin-bottom: 12px;
-    }
-
+    .feature-icon { font-size: 28px; margin-bottom: 12px; }
     .feature h3 {
       font-size: 16px;
       font-weight: 800;
       margin-bottom: 6px;
     }
-
     .feature p {
       font-size: 13px;
       color: var(--ink);
-      opacity: 0.55;
-      line-height: 1.5;
+      opacity: 0.6;
+      line-height: 1.55;
     }
 
     /* ── Footer ── */
@@ -728,19 +563,16 @@
       flex-wrap: wrap;
       gap: 16px;
     }
-
     footer p {
       font-size: 13px;
       font-weight: 500;
       opacity: 0.4;
     }
-
     .footer-links {
       display: flex;
       gap: 20px;
       list-style: none;
     }
-
     .footer-links a {
       font-size: 13px;
       font-weight: 600;
@@ -749,14 +581,12 @@
       opacity: 0.4;
       transition: opacity 0.2s;
     }
-
-    .footer-links a:hover {
-      opacity: 0.8;
-    }
+    .footer-links a:hover { opacity: 0.8; }
 
     /* ── Responsive ── */
     @media (max-width: 768px) {
-      nav { padding: 12px 20px; }
+      .lang-switch { top: 12px; left: 12px; }
+      nav { padding: 12px 20px 12px 110px; }
       .nav-links a:not(.nav-cta) { display: none; }
       .steps { grid-template-columns: 1fr; }
       .feature-grid { grid-template-columns: 1fr; }
@@ -764,18 +594,17 @@
       .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
       .install-card { padding: 28px; }
       .install-cmd { flex-direction: column; align-items: flex-start; }
+      .pro-card { padding: 28px; }
       .copy-btn { align-self: flex-end; }
       footer { flex-direction: column; text-align: center; }
       .footer-links { justify-content: center; }
     }
 
-    /* ── Animations ── */
     .fade-up {
       opacity: 0;
       transform: translateY(20px);
       transition: opacity 0.6s ease, transform 0.6s ease;
     }
-
     .fade-up.visible {
       opacity: 1;
       transform: translateY(0);
@@ -784,122 +613,107 @@
 </head>
 <body>
 
+  <!-- Language switch (좌측 상단 고정) -->
+  <div class="lang-switch" role="group" aria-label="Language">
+    <button type="button" data-lang="ko" class="is-active">KO</button>
+    <button type="button" data-lang="en">EN</button>
+  </div>
+
   <!-- Nav -->
   <nav>
     <div class="nav-logo">
       <span>&#x1F431;</span> Charge Cat
     </div>
     <ul class="nav-links">
-      <li><a href="#how">How it works</a></li>
-      <li><a href="#install">Install</a></li>
+      <li><a href="#how" data-i18n="nav.how">사용 방법</a></li>
+      <li><a href="#install" data-i18n="nav.install">설치</a></li>
       <li><a href="https://github.com/coldmans/chargeCat" target="_blank">GitHub</a></li>
-      <li><a href="#install" class="nav-cta">Download Free</a></li>
+      <li><a href="#" class="nav-cta is-disabled" id="buy-pro-nav" data-i18n="nav.buyPro">Pro 구매</a></li>
+      <li><a href="#install" class="nav-cta" data-i18n="nav.download">무료 다운로드</a></li>
     </ul>
   </nav>
 
   <!-- Hero -->
   <section class="hero">
-    <div class="badge">macOS Utility</div>
-    <h1>Your Mac has a <span class="highlight">cat</span> now.</h1>
-    <p class="hero-sub">A tiny cat peeks out from a little door every time you plug in your charger. The cutest 2 seconds of your day.</p>
+    <div class="badge" data-i18n="hero.badge">macOS 메뉴바 앱</div>
+    <h1><span data-i18n="hero.titlePre">내 맥에 작은 </span><span class="highlight" data-i18n="hero.titleHighlight">고양이</span><span data-i18n="hero.titlePost">가 살고 있어요.</span></h1>
+    <p class="hero-sub" data-i18n="hero.sub">충전기를 꽂을 때마다 작은 문에서 고양이가 빼꼼 나타나요. 하루에 가장 귀여운 2초.</p>
     <div class="hero-actions">
       <a href="#install" class="btn-primary">
         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-        Download for Mac
+        <span data-i18n="hero.ctaDownload">Mac용 다운로드</span>
       </a>
-      <a href="#how" class="btn-secondary">See how it works</a>
+      <a href="#" class="btn-secondary is-disabled" id="buy-pro-hero" data-i18n="hero.ctaPro">Pro 구매</a>
+      <a href="#how" class="btn-secondary" data-i18n="hero.ctaHow">어떻게 동작하나요?</a>
     </div>
-    <p class="hero-meta">Free &middot; macOS 14+ &middot; No sign-up required</p>
+    <p class="hero-meta" data-i18n="hero.meta">무료 · macOS 14+ · 가입 불필요</p>
   </section>
 
   <!-- Demo -->
   <section class="demo-section fade-up">
     <div class="demo-window">
-      <div class="demo-dots">
-        <span></span><span></span><span></span>
-      </div>
+      <div class="demo-dots"><span></span><span></span><span></span></div>
       <div class="demo-bolt">&#x26A1;</div>
       <div class="demo-content">
-        <div class="cat-scene">
-          <!-- Door -->
-          <div class="door-frame">
-            <div class="door-portal"></div>
-            <div class="door-panel">
-              <div class="door-knob"></div>
-            </div>
-          </div>
-          <!-- Cat -->
-          <div class="cat-body">
-            <div class="cat-torso">
-              <div class="cat-belly"></div>
-              <div class="cat-paws">
-                <div class="cat-paw"></div>
-                <div class="cat-paw"></div>
-              </div>
-            </div>
-            <div class="cat-head">
-              <div class="cat-ear cat-ear-l"></div>
-              <div class="cat-ear cat-ear-r"></div>
-              <div class="cat-eye cat-eye-l"></div>
-              <div class="cat-eye cat-eye-r"></div>
-              <div class="cat-nose"></div>
-              <div class="cat-mouth"></div>
-            </div>
-            <div class="cat-tail"></div>
-          </div>
-        </div>
-        <div class="demo-label">Screen corner overlay</div>
+        <img
+          class="demo-cat"
+          src="assets/cat-door.gif"
+          alt="Charge Cat overlay animation"
+          loading="lazy"
+          decoding="async"
+        />
+        <div class="demo-label" data-i18n="demo.label">화면 구석 오버레이</div>
       </div>
     </div>
   </section>
 
-  <!-- How it works -->
+  <!-- How -->
   <section class="how fade-up" id="how">
-    <p class="section-title">How it works</p>
-    <h2 class="section-heading">Three things happen.<br>All of them delightful.</h2>
+    <p class="section-title" data-i18n="how.eyebrow">사용 방법</p>
+    <h2 class="section-heading" data-i18n="how.heading">단 세 가지 일이 일어나요.<br>전부 기분 좋은 일로.</h2>
     <div class="steps">
       <div class="step">
         <div class="step-icon">&#x1F50C;</div>
-        <h3>Plug in</h3>
-        <p>Connect your charger like you always do. Charge Cat detects the power event instantly.</p>
+        <h3 data-i18n="how.step1.title">충전기 연결</h3>
+        <p data-i18n="how.step1.body">평소처럼 충전기를 꽂으면, Charge Cat이 즉시 감지해요.</p>
       </div>
       <div class="step">
         <div class="step-icon">&#x1F6AA;</div>
-        <h3>Door opens</h3>
-        <p>A tiny door appears in the corner of your screen. It swings open with a soft creak.</p>
+        <h3 data-i18n="how.step2.title">문이 열려요</h3>
+        <p data-i18n="how.step2.body">화면 모서리에 작은 문이 나타나 끼익 하고 열려요.</p>
       </div>
       <div class="step">
         <div class="step-icon">&#x1F431;</div>
-        <h3>Cat says hi</h3>
-        <p>A little cat peeks out, bows, smiles, then goes back inside. 2 seconds of pure joy.</p>
+        <h3 data-i18n="how.step3.title">고양이가 인사해요</h3>
+        <p data-i18n="how.step3.body">고양이가 고개를 빼꼼 내밀고, 인사하고, 다시 들어가요. 딱 2초의 귀여움.</p>
       </div>
     </div>
   </section>
 
   <!-- Features -->
   <section class="features fade-up">
-    <p class="section-title">Details</p>
-    <h2 class="section-heading">Small app. Big feelings.</h2>
+    <p class="section-title" data-i18n="features.eyebrow">디테일</p>
+    <h2 class="section-heading" data-i18n="features.heading">작은 앱, 큰 기분.</h2>
     <div class="feature-grid">
       <div class="feature">
         <div class="feature-icon">&#x1F5A5;</div>
-        <h3>Screen corner overlay</h3>
-        <p>Shows up in the bottom-left or bottom-right. Doesn't block your work. Disappears on its own.</p>
+        <h3 data-i18n="features.f1.title">화면 구석 오버레이</h3>
+        <p data-i18n="features.f1.body">왼쪽 아래 또는 오른쪽 아래에 나타나요. 작업을 가리지 않고 스스로 사라집니다.</p>
       </div>
       <div class="feature">
         <div class="feature-icon">&#x1F50B;</div>
-        <h3>Battery-aware expressions</h3>
-        <p>Low battery? The cat looks tired. Full charge? Party mode. The cat reacts to your Mac's state.</p>
+        <h3 data-i18n="features.f2.title">완충 기준 커스터마이징</h3>
+        <p data-i18n="features.f2.body">macOS 충전 상한을 자동으로 따라가거나, 80·90% 같이 내가 원하는 지점을 "완충"으로 정할 수 있어요.</p>
       </div>
       <div class="feature">
         <div class="feature-icon">&#x1F3B5;</div>
-        <h3>Menu bar resident</h3>
-        <p>Lives quietly in your menu bar. No dock icon clutter. Toggle position and auto-detect from there.</p>
+        <h3 data-i18n="features.f3.title">조용한 메뉴바 상주</h3>
+        <p data-i18n="features.f3.body">메뉴바에만 살아요. Dock 아이콘 없이 배터리 상태와 위치 설정을 바로 조작할 수 있어요.</p>
       </div>
       <div class="feature">
         <div class="feature-icon">&#x1F36A;</div>
-        <h3>Zero overhead</h3>
-        <p>Native Swift + AppKit. No Electron. No web views. Uses virtually no CPU or memory when idle.</p>
+        <h3 data-i18n="features.f4.title">가벼움 그 자체</h3>
+        <p data-i18n="features.f4.body">Swift + AppKit 네이티브. Electron 없음, 웹뷰 없음. 쉬는 동안 CPU·메모리 거의 안 써요.</p>
       </div>
     </div>
   </section>
@@ -907,47 +721,297 @@
   <!-- Install -->
   <section class="install fade-up" id="install">
     <div class="install-card">
-      <h2>Get Charge Cat</h2>
-      <p>macOS 14 Sonoma or later. Apple Silicon & Intel supported.</p>
+      <h2 data-i18n="install.heading">Charge Cat 받기</h2>
+      <p data-i18n="install.sub">macOS 14 Sonoma 이상 · Apple Silicon & Intel 지원</p>
       <div class="install-methods">
         <div class="install-method">
-          <div class="install-method-label">Homebrew (recommended)</div>
+          <div class="install-method-label" data-i18n="install.brew">Homebrew (권장)</div>
           <div class="install-cmd">
             <code>brew install --cask charge-cat</code>
-            <button class="copy-btn" onclick="copyCmd(this, 'brew install --cask charge-cat')">Copy</button>
+            <button class="copy-btn" onclick="copyCmd(this, 'brew install --cask charge-cat')" data-i18n="install.copy">복사</button>
           </div>
         </div>
-        <div class="install-or">or</div>
+        <div class="install-or" data-i18n="install.or">또는</div>
         <div class="install-method">
-          <div class="install-method-label">Direct download</div>
+          <div class="install-method-label" data-i18n="install.direct">직접 다운로드</div>
           <div class="install-download">
             <a href="#" class="btn-primary" id="download-btn">
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-              Download .dmg
+              <span data-i18n="install.dmg">.dmg 다운로드</span>
             </a>
-            <p style="margin-top:12px;font-size:12px;opacity:0.35">v1.0.0 &middot; Universal Binary &middot; ~4 MB</p>
+            <p style="margin-top:12px;font-size:12px;opacity:0.35" data-i18n="install.meta">v1.0.0 · Universal Binary · 약 4 MB</p>
           </div>
         </div>
       </div>
     </div>
   </section>
 
+  <!-- Pro -->
+  <section class="pro-strip fade-up">
+    <div class="pro-card">
+      <p class="section-title" data-i18n="pro.eyebrow">Charge Cat Pro</p>
+      <h3 data-i18n="pro.heading">핵심 기능은 계속 무료. 프리미엄은 따로.</h3>
+      <p data-i18n="pro.body">국내 결제는 Toss로 빠르게, 글로벌 체크아웃은 Lemon으로 이어갈 수 있어요. 앱 안에서 시작한 구매는 같은 Mac에서 Pro가 자동으로 활성화됩니다.</p>
+      <div class="pro-actions">
+        <a href="#" class="btn-primary is-disabled" id="buy-pro-section" data-i18n="pro.buy">Pro 구매</a>
+        <a href="https://app.lemonsqueezy.com/my-orders" class="btn-secondary" id="pro-secondary-link" target="_blank" rel="noreferrer" data-i18n="pro.myOrders">내 주문 보기</a>
+      </div>
+      <p class="pro-note" id="pro-config-note" data-i18n="pro.note">Toss 또는 Lemon 설정이 완료되면 이 자리에 결제 링크가 표시돼요.</p>
+    </div>
+  </section>
+
   <!-- Footer -->
   <footer>
-    <p>Made with warmth by <a href="https://github.com/coldmans" style="color:var(--ink);opacity:0.6;text-decoration:none;">coldmans</a></p>
+    <p>
+      <span data-i18n="footer.madeBy">따뜻한 마음으로 만든</span>
+      <a href="https://github.com/coldmans" style="color:var(--ink);opacity:0.6;text-decoration:none;">coldmans</a>
+    </p>
     <ul class="footer-links">
       <li><a href="https://github.com/coldmans/chargeCat" target="_blank">GitHub</a></li>
-      <li><a href="https://github.com/coldmans/chargeCat/issues" target="_blank">Feedback</a></li>
+      <li><a href="https://github.com/coldmans/chargeCat/issues" target="_blank" data-i18n="footer.feedback">피드백</a></li>
     </ul>
   </footer>
 
   <script>
+    var translations = {
+      ko: {
+        'nav.how': '사용 방법',
+        'nav.install': '설치',
+        'nav.buyPro': 'Pro 구매',
+        'nav.download': '무료 다운로드',
+        'hero.badge': 'macOS 메뉴바 앱',
+        'hero.titlePre': '내 맥에 작은 ',
+        'hero.titleHighlight': '고양이',
+        'hero.titlePost': '가 살고 있어요.',
+        'hero.sub': '충전기를 꽂을 때마다 작은 문에서 고양이가 빼꼼 나타나요. 하루에 가장 귀여운 2초.',
+        'hero.ctaDownload': 'Mac용 다운로드',
+        'hero.ctaPro': 'Pro 구매',
+        'hero.ctaHow': '어떻게 동작하나요?',
+        'hero.meta': '무료 · macOS 14+ · 가입 불필요',
+        'demo.label': '화면 구석 오버레이',
+        'how.eyebrow': '사용 방법',
+        'how.heading': '단 세 가지 일이 일어나요.<br>전부 기분 좋은 일로.',
+        'how.step1.title': '충전기 연결',
+        'how.step1.body': '평소처럼 충전기를 꽂으면, Charge Cat이 즉시 감지해요.',
+        'how.step2.title': '문이 열려요',
+        'how.step2.body': '화면 모서리에 작은 문이 나타나 끼익 하고 열려요.',
+        'how.step3.title': '고양이가 인사해요',
+        'how.step3.body': '고양이가 고개를 빼꼼 내밀고, 인사하고, 다시 들어가요. 딱 2초의 귀여움.',
+        'features.eyebrow': '디테일',
+        'features.heading': '작은 앱, 큰 기분.',
+        'features.f1.title': '화면 구석 오버레이',
+        'features.f1.body': '왼쪽 아래 또는 오른쪽 아래에 나타나요. 작업을 가리지 않고 스스로 사라집니다.',
+        'features.f2.title': '완충 기준 커스터마이징',
+        'features.f2.body': 'macOS 충전 상한을 자동으로 따라가거나, 80·90% 같이 내가 원하는 지점을 "완충"으로 정할 수 있어요.',
+        'features.f3.title': '조용한 메뉴바 상주',
+        'features.f3.body': '메뉴바에만 살아요. Dock 아이콘 없이 배터리 상태와 위치 설정을 바로 조작할 수 있어요.',
+        'features.f4.title': '가벼움 그 자체',
+        'features.f4.body': 'Swift + AppKit 네이티브. Electron 없음, 웹뷰 없음. 쉬는 동안 CPU·메모리 거의 안 써요.',
+        'install.heading': 'Charge Cat 받기',
+        'install.sub': 'macOS 14 Sonoma 이상 · Apple Silicon & Intel 지원',
+        'install.brew': 'Homebrew (권장)',
+        'install.copy': '복사',
+        'install.copied': '복사됨!',
+        'install.or': '또는',
+        'install.direct': '직접 다운로드',
+        'install.dmg': '.dmg 다운로드',
+        'install.meta': 'v1.0.0 · Universal Binary · 약 4 MB',
+        'pro.eyebrow': 'Charge Cat Pro',
+        'pro.heading': '핵심 기능은 계속 무료. 프리미엄은 따로.',
+        'pro.body': '국내 결제는 Toss로 빠르게, 글로벌 체크아웃은 Lemon으로 이어갈 수 있어요. 앱 안에서 시작한 구매는 같은 Mac에서 Pro가 자동으로 활성화됩니다.',
+        'pro.buy': 'Pro 구매',
+        'pro.myOrders': '내 주문 보기',
+        'pro.global': '글로벌 결제',
+        'pro.note': 'Toss 또는 Lemon 설정이 완료되면 이 자리에 결제 링크가 표시돼요.',
+        'pro.noteLive': '국내 결제는 Toss, 글로벌 체크아웃은 Lemon으로 연결됩니다. 앱 안에서도 Pro가 자동으로 잠금 해제됩니다.',
+        'footer.madeBy': '따뜻한 마음으로 만든',
+        'footer.feedback': '피드백',
+        'title': 'Charge Cat — 맥에 작은 고양이가 산다'
+      },
+      en: {
+        'nav.how': 'How it works',
+        'nav.install': 'Install',
+        'nav.buyPro': 'Buy Pro',
+        'nav.download': 'Download Free',
+        'hero.badge': 'macOS Utility',
+        'hero.titlePre': 'Your Mac has a ',
+        'hero.titleHighlight': 'cat',
+        'hero.titlePost': ' now.',
+        'hero.sub': 'A tiny cat peeks out from a little door every time you plug in your charger. The cutest 2 seconds of your day.',
+        'hero.ctaDownload': 'Download for Mac',
+        'hero.ctaPro': 'Buy Pro',
+        'hero.ctaHow': 'See how it works',
+        'hero.meta': 'Free · macOS 14+ · No sign-up required',
+        'demo.label': 'Screen corner overlay',
+        'how.eyebrow': 'How it works',
+        'how.heading': 'Three things happen.<br>All of them delightful.',
+        'how.step1.title': 'Plug in',
+        'how.step1.body': 'Connect your charger like you always do. Charge Cat detects the power event instantly.',
+        'how.step2.title': 'Door opens',
+        'how.step2.body': 'A tiny door appears in the corner of your screen. It swings open with a soft creak.',
+        'how.step3.title': 'Cat says hi',
+        'how.step3.body': 'A little cat peeks out, bows, smiles, then goes back inside. 2 seconds of pure joy.',
+        'features.eyebrow': 'Details',
+        'features.heading': 'Small app. Big feelings.',
+        'features.f1.title': 'Screen corner overlay',
+        'features.f1.body': 'Shows up in the bottom-left or bottom-right. Doesn\'t block your work. Disappears on its own.',
+        'features.f2.title': 'Custom full-charge target',
+        'features.f2.body': 'Follow the macOS charge limit automatically — or pick your own threshold like 80% or 90% as "fully charged".',
+        'features.f3.title': 'Quiet menu bar resident',
+        'features.f3.body': 'Lives in the menu bar only. No dock icon. Battery state and corner position right where you need them.',
+        'features.f4.title': 'Zero overhead',
+        'features.f4.body': 'Native Swift + AppKit. No Electron. No web views. Uses virtually no CPU or memory when idle.',
+        'install.heading': 'Get Charge Cat',
+        'install.sub': 'macOS 14 Sonoma or later · Apple Silicon & Intel supported',
+        'install.brew': 'Homebrew (recommended)',
+        'install.copy': 'Copy',
+        'install.copied': 'Copied!',
+        'install.or': 'or',
+        'install.direct': 'Direct download',
+        'install.dmg': 'Download .dmg',
+        'install.meta': 'v1.0.0 · Universal Binary · ~4 MB',
+        'pro.eyebrow': 'Charge Cat Pro',
+        'pro.heading': 'Keep the core app free. Unlock premium extras separately.',
+        'pro.body': 'Use Toss for the smoothest Korean checkout, or keep Lemon available for global checkout. Purchases started in the app can still unlock Pro automatically on the same Mac.',
+        'pro.buy': 'Buy Pro',
+        'pro.myOrders': 'My Orders',
+        'pro.global': 'Global checkout',
+        'pro.note': 'Checkout links appear here once Toss or Lemon is configured for this site build.',
+        'pro.noteLive': 'Domestic checkout goes through Toss, while global checkout stays available through Lemon. Charge Cat app purchases can also unlock Pro automatically through the backend.',
+        'footer.madeBy': 'Made with warmth by',
+        'footer.feedback': 'Feedback',
+        'title': 'Charge Cat — Your Mac has a cat now.'
+      }
+    };
+
+    var STORAGE_KEY = 'chargecat-lang';
+    var supportedLangs = ['ko', 'en'];
+    var licensingSiteConfig = null;
+
+    function getInitialLang() {
+      try {
+        var stored = localStorage.getItem(STORAGE_KEY);
+        if (stored && supportedLangs.indexOf(stored) !== -1) return stored;
+      } catch (e) {}
+      return 'ko';
+    }
+
+    function applyLang(lang) {
+      if (supportedLangs.indexOf(lang) === -1) lang = 'ko';
+      var dict = translations[lang];
+      document.documentElement.setAttribute('lang', lang);
+      if (dict.title) document.title = dict.title;
+
+      document.querySelectorAll('[data-i18n]').forEach(function(el) {
+        var key = el.getAttribute('data-i18n');
+        if (dict[key] !== undefined) {
+          el.innerHTML = dict[key];
+        }
+      });
+
+      document.querySelectorAll('.lang-switch button').forEach(function(btn) {
+        if (btn.getAttribute('data-lang') === lang) {
+          btn.classList.add('is-active');
+        } else {
+          btn.classList.remove('is-active');
+        }
+      });
+
+      try { localStorage.setItem(STORAGE_KEY, lang); } catch (e) {}
+
+      if (licensingSiteConfig !== null) {
+        applyBuyProUrl(licensingSiteConfig);
+      } else {
+        var note = document.getElementById('pro-config-note');
+        if (note && note.dataset.isLive === 'true') {
+          note.textContent = dict['pro.noteLive'];
+        }
+      }
+    }
+
+    document.querySelectorAll('.lang-switch button').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        applyLang(btn.getAttribute('data-lang'));
+      });
+    });
+
+    applyLang(getInitialLang());
+
+    // Pro checkout wiring
+    var buyProButtons = [
+      document.getElementById('buy-pro-nav'),
+      document.getElementById('buy-pro-hero'),
+      document.getElementById('buy-pro-section')
+    ];
+
+    function applyBuyProUrl(config) {
+      var backendBaseUrl = config && config.backendBaseURL ? String(config.backendBaseURL).replace(/\/$/, '') : '';
+      var lemonCheckoutUrl = config && config.checkoutURL ? config.checkoutURL : '';
+      var myOrdersUrl = config && config.myOrdersURL ? config.myOrdersURL : 'https://app.lemonsqueezy.com/my-orders';
+      var supportUrl = config && config.supportURL ? config.supportURL : 'https://github.com/coldmans/chargeCat/issues';
+      var url = backendBaseUrl ? backendBaseUrl + '/buy/pro' : lemonCheckoutUrl;
+
+      buyProButtons.forEach(function(button) {
+        if (!button) return;
+        if (url) {
+          button.href = url;
+          button.target = '_blank';
+          button.rel = 'noreferrer';
+          button.classList.remove('is-disabled');
+        } else {
+          button.href = '#';
+          button.classList.add('is-disabled');
+        }
+      });
+
+      var secondary = document.getElementById('pro-secondary-link');
+      if (secondary) {
+        var secondaryLang = document.documentElement.getAttribute('lang') || 'ko';
+        var secondaryDict = translations[secondaryLang] || translations.ko;
+        if (backendBaseUrl && lemonCheckoutUrl) {
+          secondary.href = backendBaseUrl + '/buy/pro?provider=lemon';
+          secondary.textContent = secondaryDict['pro.global'];
+        } else if (lemonCheckoutUrl) {
+          secondary.href = myOrdersUrl;
+          secondary.textContent = secondaryDict['pro.myOrders'];
+        } else {
+          secondary.href = supportUrl;
+          secondary.textContent = secondaryDict['footer.feedback'];
+        }
+      }
+
+      var note = document.getElementById('pro-config-note');
+      if (!note) return;
+      var lang = document.documentElement.getAttribute('lang') || 'ko';
+      var dict = translations[lang] || translations.ko;
+      if (url) {
+        note.dataset.isLive = 'true';
+        note.textContent = dict['pro.noteLive'];
+      } else {
+        note.dataset.isLive = 'false';
+        note.textContent = dict['pro.note'];
+      }
+    }
+
+    fetch('Sources/ChargeCat/Resources/licensing-config.json')
+      .then(function(response) { return response.ok ? response.json() : null; })
+      .then(function(config) {
+        licensingSiteConfig = config;
+        applyBuyProUrl(config);
+      })
+      .catch(function() {
+        licensingSiteConfig = null;
+        applyBuyProUrl(null);
+      });
+
     function copyCmd(btn, text) {
       navigator.clipboard.writeText(text).then(function() {
-        btn.textContent = 'Copied!';
+        var lang = document.documentElement.getAttribute('lang') || 'ko';
+        var dict = translations[lang] || translations.ko;
+        btn.textContent = dict['install.copied'];
         btn.classList.add('copied');
         setTimeout(function() {
-          btn.textContent = 'Copy';
+          btn.textContent = dict['install.copy'];
           btn.classList.remove('copied');
         }, 2000);
       });

@@ -31,3 +31,9 @@ xcuserdata/
 
 # Local tool state
 .claude/
+
+# Backend
+backend/node_modules/
+backend/.env
+backend/data/*.sqlite
+backend/data/*.sqlite-*

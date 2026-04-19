@@ -5,7 +5,7 @@ struct ControlsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Settings")
+            Text(model.copy.settings)
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundStyle(Palette.ink)
                 .padding(.horizontal, 4)
@@ -13,7 +13,7 @@ struct ControlsSection: View {
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 12) {
                     Label {
-                        Text("Animation")
+                        Text(model.copy.animation)
                             .font(.system(size: 14, weight: .semibold, design: .rounded))
                             .foregroundStyle(Palette.ink)
                     } icon: {
@@ -27,7 +27,7 @@ struct ControlsSection: View {
                                 model.updateSelectedAnimationAsset(asset)
                             } label: {
                                 SelectionChip(
-                                    title: asset.title,
+                                    title: model.copy.title(for: asset),
                                     systemImage: asset.systemImage,
                                     isSelected: model.selectedAnimationAsset == asset
                                 )
@@ -44,7 +44,7 @@ struct ControlsSection: View {
                 // Corner Selection
                 VStack(alignment: .leading, spacing: 10) {
                     Label {
-                        Text("Screen Corner")
+                        Text(model.copy.screenCorner)
                             .font(.system(size: 14, weight: .semibold, design: .rounded))
                             .foregroundStyle(Palette.ink)
                     } icon: {
@@ -58,7 +58,7 @@ struct ControlsSection: View {
                                 model.updatePreferredSide(side)
                             } label: {
                                 SelectionChip(
-                                    title: side.title,
+                                    title: model.copy.title(for: side),
                                     systemImage: side == .left ? "sidebar.left" : "sidebar.right",
                                     isSelected: model.preferredSide == side
                                 )
@@ -79,7 +79,7 @@ struct ControlsSection: View {
                     } label: {
                         HStack {
                             Image(systemName: "bolt.fill")
-                            Text("Test Charge")
+                            Text(model.copy.testCharge)
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -90,7 +90,7 @@ struct ControlsSection: View {
                     } label: {
                         HStack {
                             Image(systemName: "sparkles")
-                            Text("Test Full")
+                            Text(model.copy.testFull)
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -114,7 +114,7 @@ struct ControlsSection: View {
                         set: { model.updateAutoMonitorEnabled($0) }
                     )) {
                         Label {
-                            Text("Auto-react to real charging")
+                            Text(model.copy.autoReactToRealCharging)
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                                 .foregroundStyle(Palette.ink)
                         } icon: {
@@ -130,7 +130,7 @@ struct ControlsSection: View {
                         set: { model.updateLaunchAtLogin($0) }
                     )) {
                         Label {
-                            Text("Launch at Login")
+                            Text(model.copy.launchAtLogin)
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                                 .foregroundStyle(Palette.ink)
                         } icon: {
@@ -215,7 +215,7 @@ private struct ChargeTargetRow: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label {
-                    Text("Full Charge Target")
+                    Text(model.copy.fullChargeTarget)
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(Palette.ink)
                 } icon: {
@@ -251,11 +251,11 @@ private struct ChargeTargetRow: View {
                 )
                 .tint(Palette.amber)
 
-                Text("Cat will cheer at \(model.chargeTargetLevel)%.")
+                Text(model.copy.catWillCheer(at: model.chargeTargetLevel))
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(Palette.ink.opacity(0.55))
             } else if model.systemChargeLimit == nil {
-                Text("Couldn't read the system limit — falling back to 100%.")
+                Text(model.copy.couldntReadSystemLimit)
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(Palette.ink.opacity(0.55))
             }
@@ -263,9 +263,6 @@ private struct ChargeTargetRow: View {
     }
 
     private var systemToggleLabel: String {
-        if let limit = model.systemChargeLimit {
-            return "Follow macOS setting (\(limit)%)"
-        }
-        return "Follow macOS setting"
+        model.copy.followMacOSSetting(limit: model.systemChargeLimit)
     }
 }
