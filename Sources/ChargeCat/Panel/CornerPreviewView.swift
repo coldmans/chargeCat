@@ -2,30 +2,38 @@ import SwiftUI
 
 struct CornerPreviewView: View {
     let side: ScreenSide
-    let previewLevel: Double
+    let asset: OverlayAnimationAsset
+    @Binding var previewLevel: Double
 
-    private var previewGIFSize: CGSize {
-        GIFAsset.catDoor.previewDisplaySize
+    private var previewMediaSize: CGSize {
+        asset.previewDisplaySize
     }
 
     private var previewAlignment: Alignment {
         side == .left ? .bottomLeading : .bottomTrailing
     }
 
+    private var shadowWidth: CGFloat {
+        max(previewMediaSize.width * 0.48, 74)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("Corner Preview")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(Palette.ink)
                 Spacer()
                 Text("\(Int(previewLevel.rounded()))%")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(.system(size: 14, weight: .bold, design: .monospaced))
                     .foregroundStyle(Palette.cocoa)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Palette.cocoa.opacity(0.1), in: Capsule())
             }
 
             ZStack {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [Palette.screen, Palette.screenEdge],
@@ -34,7 +42,7 @@ struct CornerPreviewView: View {
                         )
                     )
 
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .stroke(Color.white.opacity(0.08), lineWidth: 1)
 
                 VStack(spacing: 0) {
@@ -55,7 +63,7 @@ struct CornerPreviewView: View {
                         .padding(.bottom, 18)
                 }
 
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
@@ -73,15 +81,12 @@ struct CornerPreviewView: View {
                     Ellipse()
                         .fill(Color.black.opacity(0.18))
                         .blur(radius: 10)
-                        .frame(width: 74, height: 14)
+                        .frame(width: shadowWidth, height: 14)
                         .padding(.bottom, 18)
                         .padding(side == .left ? .leading : .trailing, 26)
 
-                    GIFAnimationView(
-                        asset: .catDoor,
-                        frameIndex: GIFAsset.catDoor.previewFrame
-                    )
-                    .frame(width: previewGIFSize.width, height: previewGIFSize.height)
+                    previewMediaView
+                    .frame(width: previewMediaSize.width, height: previewMediaSize.height)
                     .scaleEffect(x: side == .left ? 1 : -1, y: 1)
                     .padding(.bottom, 18)
                     .padding(side == .left ? .leading : .trailing, 18)
@@ -89,8 +94,29 @@ struct CornerPreviewView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 14)
             }
-            .frame(height: 250)
-            .shadow(color: Palette.shadow, radius: 24, x: 0, y: 14)
+            .frame(height: 220)
+            .shadow(color: Palette.shadow.opacity(0.06), radius: 16, x: 0, y: 8)
+            
+            Slider(value: $previewLevel, in: 1...100, step: 1)
+                .tint(Palette.amber)
+                .padding(.top, 4)
+        }
+    }
+
+    @ViewBuilder
+    private var previewMediaView: some View {
+        if let gifAsset = asset.gifAsset {
+            GIFAnimationView(
+                asset: gifAsset,
+                frameIndex: gifAsset.previewFrame
+            )
+        } else if let videoAsset = asset.videoAsset {
+            VideoAnimationView(
+                asset: videoAsset,
+                loop: true,
+                isMuted: true,
+                playbackID: asset.rawValue
+            )
         }
     }
 }

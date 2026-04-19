@@ -12,6 +12,15 @@ Package.resolved
 dist/
 *.dmg
 *.app
+*.zip
+
+# Windows
+.vs/
+*.user
+*.suo
+windows/dist/
+windows/**/bin/
+windows/**/obj/
 
 # Xcode user files
 DerivedData/

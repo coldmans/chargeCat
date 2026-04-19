@@ -12,8 +12,8 @@ struct OverlayContainerView: View {
     @State private var isFinishing = false
     @State private var currentFrameIndex = 0
 
-    private var overlayGIFSize: CGSize {
-        GIFAsset.catDoor.overlayDisplaySize
+    private var overlayMediaSize: CGSize {
+        payload.asset.overlayDisplaySize
     }
 
     var body: some View {
@@ -24,7 +24,7 @@ struct OverlayContainerView: View {
                 }
 
                 gifView
-                    .frame(width: overlayGIFSize.width, height: overlayGIFSize.height)
+                    .frame(width: overlayMediaSize.width, height: overlayMediaSize.height)
                     .scaleEffect(x: payload.side == .left ? 1 : -1, y: 1)
                     .blur(radius: blurRadius)
                     .opacity(overlayOpacity)
@@ -42,49 +42,62 @@ struct OverlayContainerView: View {
         .task(id: payload.id) {
             if reduceMotion {
                 await runReducedMotion()
+            } else if let gifAsset = payload.asset.gifAsset {
+                await runGIFSequence(asset: gifAsset)
             } else {
-                await runGIFSequence()
+                await runVideoSequence()
             }
         }
     }
 
     @MainActor
-    private func runGIFSequence() async {
+    private func runGIFSequence(asset: GIFAsset) async {
         overlayOpacity = 1
         blurRadius = 0
         isFinishing = false
         currentFrameIndex = 0
+        let shouldPlaySounds = payload.asset == .catDoor
 
         let doorSound = Task { @MainActor in
-            try? await Task.sleep(for: GIFAsset.catDoor.doorCreakDelay)
+            guard shouldPlaySounds else { return }
+            guard await sleepUnlessCancelled(for: asset.doorCreakDelay) else { return }
             soundPlayer.play(.doorCreak)
         }
 
         let chirpSound = Task { @MainActor in
-            try? await Task.sleep(for: GIFAsset.catDoor.catChirpDelay)
+            guard shouldPlaySounds else { return }
+            guard await sleepUnlessCancelled(for: asset.catChirpDelay) else { return }
             soundPlayer.play(.catChirp)
         }
 
         let sparkleSound = Task { @MainActor in
-            guard payload.kind == .fullyCharged else { return }
-            try? await Task.sleep(for: GIFAsset.catDoor.sparkleDelay)
+            guard shouldPlaySounds, payload.kind == .fullyCharged else { return }
+            guard await sleepUnlessCancelled(for: asset.sparkleDelay) else { return }
             soundPlayer.play(.sparkle)
         }
 
-        for frameIndex in 0..<GIFAsset.catDoor.frameCount {
+        for frameIndex in 0..<asset.frameCount {
+            guard Task.isCancelled == false else {
+                cancel(tasks: [doorSound, chirpSound, sparkleSound])
+                return
+            }
             currentFrameIndex = frameIndex
-            try? await Task.sleep(for: GIFAsset.catDoor.frameDelay(at: frameIndex))
+            guard await sleepUnlessCancelled(for: asset.frameDelay(at: frameIndex)) else {
+                cancel(tasks: [doorSound, chirpSound, sparkleSound])
+                return
+            }
         }
 
         _ = await (doorSound.value, chirpSound.value, sparkleSound.value)
+        guard Task.isCancelled == false else { return }
 
         isFinishing = true
-        currentFrameIndex = GIFAsset.catDoor.lastFrameIndex
+        currentFrameIndex = asset.lastFrameIndex
         withAnimation(.easeOut(duration: 0.825)) {
             blurRadius = 14
             overlayOpacity = 0
         }
-        try? await Task.sleep(for: .milliseconds(975))
+        guard await sleepUnlessCancelled(for: .milliseconds(975)) else { return }
         onFinished()
     }
 
@@ -93,21 +106,66 @@ struct OverlayContainerView: View {
         overlayOpacity = 1
         blurRadius = 0
         isFinishing = true
-        currentFrameIndex = GIFAsset.catDoor.previewFrame
-        try? await Task.sleep(for: .seconds(2))
+        currentFrameIndex = payload.asset.gifAsset?.previewFrame ?? 0
+        guard await sleepUnlessCancelled(for: .seconds(2)) else { return }
         withAnimation(.easeOut(duration: 0.3)) {
             blurRadius = 10
             overlayOpacity = 0
         }
-        try? await Task.sleep(for: .milliseconds(350))
+        guard await sleepUnlessCancelled(for: .milliseconds(350)) else { return }
         onFinished()
+    }
+
+    @MainActor
+    private func runVideoSequence() async {
+        overlayOpacity = 1
+        blurRadius = 0
+        isFinishing = false
+
+        guard await sleepUnlessCancelled(for: payload.asset.dismissDelay) else { return }
+
+        isFinishing = true
+        withAnimation(.easeOut(duration: 0.45)) {
+            blurRadius = 12
+            overlayOpacity = 0
+        }
+        guard await sleepUnlessCancelled(for: .milliseconds(500)) else { return }
+        onFinished()
+    }
+
+    @MainActor
+    private func sleepUnlessCancelled(for duration: Duration) async -> Bool {
+        do {
+            try await Task.sleep(for: duration)
+            return Task.isCancelled == false
+        } catch {
+            return false
+        }
+    }
+
+    @MainActor
+    private func cancel(tasks: [Task<Void, Never>]) {
+        tasks.forEach { $0.cancel() }
     }
 
     @ViewBuilder
     private var gifView: some View {
-        GIFAnimationView(
-            asset: .catDoor,
-            frameIndex: isFinishing ? GIFAsset.catDoor.lastFrameIndex : currentFrameIndex
-        )
+        if reduceMotion, let image = payload.asset.previewImage {
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } else if let gifAsset = payload.asset.gifAsset {
+            GIFAnimationView(
+                asset: gifAsset,
+                frameIndex: isFinishing ? gifAsset.lastFrameIndex : currentFrameIndex
+            )
+        } else if let videoAsset = payload.asset.videoAsset {
+            VideoAnimationView(
+                asset: videoAsset,
+                loop: false,
+                isMuted: true,
+                playbackID: payload.id.uuidString
+            )
+        }
     }
 }

@@ -19,6 +19,7 @@ struct OverlayPayload: Identifiable, Equatable {
     let kind: OverlayEventKind
     let batteryLevel: Int
     let side: ScreenSide
+    let asset: OverlayAnimationAsset
     let animationType: AnimationType
 
     var condition: CatCondition {

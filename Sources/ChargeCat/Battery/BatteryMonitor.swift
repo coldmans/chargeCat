@@ -42,6 +42,7 @@ final class BatteryMonitor {
     private func poll(reason: String) {
         let snapshot = Self.readSystemBattery()
         model?.updateBattery(snapshot)
+        model?.refreshSystemChargeLimit()
 
         guard let model, let snapshot else {
             previousSnapshot = snapshot
@@ -54,25 +55,31 @@ final class BatteryMonitor {
             return
         }
 
+        // Unplug 감지 → throttle 리셋해서 빠른 재연결도 감지 가능
+        if previousSnapshot.isPluggedIn && snapshot.isPluggedIn == false {
+            model.resetTriggerHistory()
+        }
+
         if isChargeStarted(from: previousSnapshot, to: snapshot) {
             model.trigger(.chargeStarted, level: snapshot.level, source: "system")
         }
 
-        if isFullyCharged(from: previousSnapshot, to: snapshot) {
+        if isFullyCharged(from: previousSnapshot, to: snapshot, target: model.effectiveChargeTarget) {
             model.trigger(.fullyCharged, level: snapshot.level, source: "system")
         }
     }
 
     private func isChargeStarted(from previous: BatterySnapshot, to current: BatterySnapshot) -> Bool {
-        let powerWasConnected = previous.isPluggedIn == false && current.isPluggedIn
-        let chargingJustStarted = previous.isCharging == false && current.isCharging
-        return powerWasConnected || chargingJustStarted
+        // 플러그 상태 전환(false→true)만 트리거 조건으로 사용.
+        // isCharging 토글(100% 도달 후 재충전 등)은 무시.
+        return previous.isPluggedIn == false && current.isPluggedIn
     }
 
-    private func isFullyCharged(from previous: BatterySnapshot, to current: BatterySnapshot) -> Bool {
-        let reachedHundred = previous.level < 100 && current.level == 100 && current.isPluggedIn
-        let chargingStoppedAtFull = previous.isCharging && current.isPluggedIn && current.isCharging == false && current.level >= 99
-        return reachedHundred || chargingStoppedAtFull
+    private func isFullyCharged(from previous: BatterySnapshot, to current: BatterySnapshot, target: Int) -> Bool {
+        // 사용자 지정 완충 기준(또는 시스템 상한) 도달 시점만 감지.
+        // target 미만에서 target 이상으로 넘어가는 순간을 캡쳐하므로,
+        // 이미 target 이상으로 꽂힌 상태에서는 트리거하지 않는다.
+        return previous.level < target && current.level >= target && current.isPluggedIn
     }
 
     private static let powerSourceChanged: IOPowerSourceCallbackType = { context in

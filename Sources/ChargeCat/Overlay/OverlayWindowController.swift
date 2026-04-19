@@ -8,8 +8,8 @@ final class OverlayWindowController: NSObject, OverlayPresenting {
         static let bottomPadding: CGFloat = 12
         static let topPadding: CGFloat = 8
 
-        static var panelSize: NSSize {
-            let imageSize = GIFAsset.catDoor.overlayDisplaySize
+        static func panelSize(for asset: OverlayAnimationAsset) -> NSSize {
+            let imageSize = asset.overlayDisplaySize
             return NSSize(
                 width: imageSize.width + horizontalPadding,
                 height: imageSize.height + bottomPadding + topPadding
@@ -19,11 +19,12 @@ final class OverlayWindowController: NSObject, OverlayPresenting {
 
     private let panel: NSPanel
     private let soundPlayer: SoundPlayer
+    private var currentPresentationID = UUID()
 
     init(soundPlayer: SoundPlayer) {
         self.soundPlayer = soundPlayer
         panel = NSPanel(
-            contentRect: NSRect(origin: .zero, size: Layout.panelSize),
+            contentRect: NSRect(origin: .zero, size: Layout.panelSize(for: .catDoor)),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -42,22 +43,27 @@ final class OverlayWindowController: NSObject, OverlayPresenting {
     }
 
     func present(payload: OverlayPayload) {
+        let presentationID = UUID()
+        currentPresentationID = presentationID
+        panel.setContentSize(Layout.panelSize(for: payload.asset))
         panel.contentView = NSHostingView(
             rootView: OverlayContainerView(payload: payload, soundPlayer: soundPlayer) { [weak self] in
-                self?.panel.orderOut(nil)
+                guard let self, self.currentPresentationID == presentationID else { return }
+                self.panel.orderOut(nil)
             }
         )
-        positionPanel(for: payload.side)
+        positionPanel(for: payload.side, asset: payload.asset)
         panel.alphaValue = 1
         panel.orderFrontRegardless()
     }
 
-    private func positionPanel(for side: ScreenSide) {
+    private func positionPanel(for side: ScreenSide, asset: OverlayAnimationAsset) {
         let visibleFrame = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame
             ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let inset: CGFloat = 18
-        let width = Layout.panelSize.width
-        let height = Layout.panelSize.height
+        let panelSize = Layout.panelSize(for: asset)
+        let width = panelSize.width
+        let height = panelSize.height
 
         let x: CGFloat
         switch side {

@@ -18,11 +18,18 @@ struct GIFAnimationView: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSImageView, context: Context) {
         if let frameIndex {
-            nsView.image = asset.image(at: frameIndex)
+            let next = asset.image(at: frameIndex)
+            if nsView.image !== next {
+                nsView.image = next
+            }
             return
         }
 
-        nsView.image = asset.animatedImage
+        // 애니메이션 이미지가 이미 설정돼 있으면 재할당하지 않는다.
+        // 재할당은 NSImageView가 GIF를 첫 프레임부터 다시 재생하게 만들어 끊김을 유발한다.
+        if nsView.image == nil {
+            nsView.image = asset.animatedImage
+        }
     }
 }
 
@@ -34,6 +41,15 @@ final class GIFAsset: @unchecked Sendable {
         doorCreakFrame: 5,
         catChirpFrame: 40,
         sparkleFrame: 85
+    )
+
+    static let fullBelly = GIFAsset(
+        resourceName: "full-belly",
+        previewFrame: 18,
+        onboardingFrame: 18,
+        doorCreakFrame: 0,
+        catChirpFrame: 0,
+        sparkleFrame: 0
     )
 
     let previewFrame: Int
@@ -59,7 +75,7 @@ final class GIFAsset: @unchecked Sendable {
         catChirpFrame: Int,
         sparkleFrame: Int
     ) {
-        guard let url = ResourceBundle.current.url(
+        guard let url = ResourceBundle.resourceURL(
             forResource: resourceName,
             withExtension: "gif",
             subdirectory: "Animations"

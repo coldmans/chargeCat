@@ -5,9 +5,14 @@ import Observation
 @Observable
 final class AppModel {
     var preferredSide: ScreenSide
+    var selectedAnimationAsset: OverlayAnimationAsset
     var soundEnabled: Bool
     var autoMonitorEnabled: Bool
     var launchAtLoginEnabled: Bool
+
+    var chargeTargetFollowsSystem: Bool
+    var chargeTargetLevel: Int
+    var systemChargeLimit: Int?
 
     var previewBatteryLevel: Double
     var latestBattery: BatterySnapshot?
@@ -30,9 +35,13 @@ final class AppModel {
         self.launchAtLogin = launchAtLogin
         self.soundPlayer = soundPlayer ?? SoundPlayer()
         preferredSide = UserSettings.preferredSide
+        selectedAnimationAsset = UserSettings.selectedAnimationAsset
         soundEnabled = false
         autoMonitorEnabled = UserSettings.autoMonitorEnabled
         launchAtLoginEnabled = UserSettings.launchAtLoginEnabled
+        chargeTargetFollowsSystem = UserSettings.chargeTargetFollowsSystem
+        chargeTargetLevel = UserSettings.chargeTargetLevel
+        systemChargeLimit = ChargeLimitReader.readSystemChargeLimit()
         previewBatteryLevel = 38
         batteryMonitoringAvailable = true
         currentPowerMode = PowerModeReader.readCurrentMode(isPluggedIn: nil)
@@ -40,6 +49,16 @@ final class AppModel {
 
         self.soundPlayer.isEnabled = false
         refreshLaunchAtLoginState()
+        syncChargeTargetWithSystemIfNeeded()
+    }
+
+    /// 실제로 완충 트리거에 사용할 기준값.
+    /// 시스템 연동 모드에서는 읽어온 값(없으면 100)을 사용하고, 수동 모드에서는 사용자 지정값을 사용한다.
+    var effectiveChargeTarget: Int {
+        if chargeTargetFollowsSystem {
+            return systemChargeLimit ?? 100
+        }
+        return chargeTargetLevel
     }
 
     var menuBarBatteryText: String? {
@@ -62,6 +81,11 @@ final class AppModel {
         UserSettings.preferredSide = side
     }
 
+    func updateSelectedAnimationAsset(_ asset: OverlayAnimationAsset) {
+        selectedAnimationAsset = asset
+        UserSettings.selectedAnimationAsset = asset
+    }
+
     func updateSoundEnabled(_ isEnabled: Bool) {
         soundEnabled = isEnabled
         UserSettings.soundEnabled = isEnabled
@@ -71,6 +95,37 @@ final class AppModel {
     func updateAutoMonitorEnabled(_ isEnabled: Bool) {
         autoMonitorEnabled = isEnabled
         UserSettings.autoMonitorEnabled = isEnabled
+    }
+
+    func updateChargeTargetFollowsSystem(_ followsSystem: Bool) {
+        chargeTargetFollowsSystem = followsSystem
+        UserSettings.chargeTargetFollowsSystem = followsSystem
+        syncChargeTargetWithSystemIfNeeded()
+    }
+
+    func updateChargeTargetLevel(_ level: Int) {
+        let clamped = ChargeTarget.clamp(level)
+        chargeTargetLevel = clamped
+        UserSettings.chargeTargetLevel = clamped
+    }
+
+    func refreshSystemChargeLimit() {
+        let latest = ChargeLimitReader.readSystemChargeLimit()
+        // 값이 바뀐 경우에만 반영 — Observable이 매 폴링마다 notify해서
+        // GIFAnimationView가 리셋되는 것을 방지한다.
+        if latest != systemChargeLimit {
+            systemChargeLimit = latest
+        }
+        syncChargeTargetWithSystemIfNeeded()
+    }
+
+    private func syncChargeTargetWithSystemIfNeeded() {
+        guard chargeTargetFollowsSystem, let systemChargeLimit else { return }
+        let clamped = ChargeTarget.clamp(systemChargeLimit)
+        if chargeTargetLevel != clamped {
+            chargeTargetLevel = clamped
+            UserSettings.chargeTargetLevel = clamped
+        }
     }
 
     func updateLaunchAtLogin(_ isEnabled: Bool) {
@@ -125,10 +180,11 @@ final class AppModel {
             kind: kind,
             batteryLevel: resolvedLevel,
             side: preferredSide,
+            asset: selectedAnimationAsset,
             animationType: AnimationPicker.selectAnimation(for: kind)
         )
 
-        lastEventDescription = "\(kind.title) from \(source) at \(resolvedLevel)% on the \(preferredSide.title.lowercased()) side."
+        lastEventDescription = "\(kind.title) from \(source) at \(resolvedLevel)% on the \(preferredSide.title.lowercased()) side with \(selectedAnimationAsset.title)."
         overlayPresenter?.present(payload: payload)
     }
 
@@ -136,6 +192,11 @@ final class AppModel {
         if desiredLaunchAtLogin != launchAtLoginEnabled {
             updateLaunchAtLogin(desiredLaunchAtLogin)
         }
+    }
+
+    func resetTriggerHistory() {
+        lastTriggerAt = nil
+        lastTriggerKind = nil
     }
 
     private func shouldThrottle(kind: OverlayEventKind, source: String) -> Bool {
@@ -146,7 +207,7 @@ final class AppModel {
             return false
         }
 
-        return lastTriggerKind == kind && Date().timeIntervalSince(lastTriggerAt) < 10
+        return lastTriggerKind == kind && Date().timeIntervalSince(lastTriggerAt) < 2
     }
 
     private func refreshLaunchAtLoginState() {
