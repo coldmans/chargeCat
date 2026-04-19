@@ -28,7 +28,7 @@ struct ControlsSection: View {
                             } label: {
                                 SelectionChip(
                                     title: asset.title,
-                                    systemImage: asset == .catDoor ? "door.left.hand.open" : "play.rectangle.fill",
+                                    systemImage: asset.systemImage,
                                     isSelected: model.selectedAnimationAsset == asset
                                 )
                             }

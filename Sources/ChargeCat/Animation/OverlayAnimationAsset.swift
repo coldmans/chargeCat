@@ -5,6 +5,7 @@ import Foundation
 
 enum OverlayAnimationAsset: String, CaseIterable, Identifiable {
     case catDoor
+    case doorCatHD
     case fullBelly
 
     var id: String { rawValue }
@@ -13,8 +14,19 @@ enum OverlayAnimationAsset: String, CaseIterable, Identifiable {
         switch self {
         case .catDoor:
             return "Door Cat"
+        case .doorCatHD:
+            return "Door Cat HD"
         case .fullBelly:
             return "Full Belly"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .catDoor, .doorCatHD:
+            return "door.left.hand.open"
+        case .fullBelly:
+            return "play.rectangle.fill"
         }
     }
 
@@ -22,6 +34,8 @@ enum OverlayAnimationAsset: String, CaseIterable, Identifiable {
         switch self {
         case .catDoor:
             return GIFAsset.catDoor.overlayDisplaySize
+        case .doorCatHD:
+            return VideoAsset.doorCatHD.size(forHeight: 300)
         case .fullBelly:
             return VideoAsset.fullBelly.size(forHeight: 240)
         }
@@ -31,6 +45,8 @@ enum OverlayAnimationAsset: String, CaseIterable, Identifiable {
         switch self {
         case .catDoor:
             return GIFAsset.catDoor.previewDisplaySize
+        case .doorCatHD:
+            return VideoAsset.doorCatHD.size(forHeight: 104)
         case .fullBelly:
             return VideoAsset.fullBelly.size(forHeight: 96)
         }
@@ -40,6 +56,8 @@ enum OverlayAnimationAsset: String, CaseIterable, Identifiable {
         switch self {
         case .catDoor:
             return GIFAsset.catDoor.dismissDelay
+        case .doorCatHD:
+            return VideoAsset.doorCatHD.dismissDelay
         case .fullBelly:
             return VideoAsset.fullBelly.dismissDelay
         }
@@ -49,8 +67,32 @@ enum OverlayAnimationAsset: String, CaseIterable, Identifiable {
         switch self {
         case .catDoor:
             return GIFAsset.catDoor.image(at: GIFAsset.catDoor.previewFrame)
+        case .doorCatHD:
+            return VideoAsset.doorCatHD.previewImage
         case .fullBelly:
             return VideoAsset.fullBelly.previewImage
+        }
+    }
+
+    var doorCreakDelay: Duration? {
+        switch self {
+        case .catDoor:
+            return GIFAsset.catDoor.doorCreakDelay
+        case .doorCatHD:
+            return .milliseconds(80)
+        case .fullBelly:
+            return nil
+        }
+    }
+
+    var catChirpDelay: Duration? {
+        switch self {
+        case .catDoor:
+            return GIFAsset.catDoor.catChirpDelay
+        case .doorCatHD:
+            return .milliseconds(950)
+        case .fullBelly:
+            return nil
         }
     }
 
@@ -58,6 +100,8 @@ enum OverlayAnimationAsset: String, CaseIterable, Identifiable {
         switch self {
         case .catDoor:
             return .catDoor
+        case .doorCatHD:
+            return nil
         case .fullBelly:
             return nil
         }
@@ -67,6 +111,8 @@ enum OverlayAnimationAsset: String, CaseIterable, Identifiable {
         switch self {
         case .catDoor:
             return nil
+        case .doorCatHD:
+            return .doorCatHD
         case .fullBelly:
             return .fullBelly
         }
@@ -74,6 +120,7 @@ enum OverlayAnimationAsset: String, CaseIterable, Identifiable {
 }
 
 final class VideoAsset: @unchecked Sendable {
+    static let doorCatHD = VideoAsset(resourceName: "door-cat-hd", fileExtension: "mov")
     static let fullBelly = VideoAsset(resourceName: "full-belly", fileExtension: "mov")
 
     let duration: TimeInterval

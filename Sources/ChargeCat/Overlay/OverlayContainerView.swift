@@ -56,22 +56,22 @@ struct OverlayContainerView: View {
         blurRadius = 0
         isFinishing = false
         currentFrameIndex = 0
-        let shouldPlaySounds = payload.asset == .catDoor
+        let shouldPlaySounds = payload.asset.doorCreakDelay != nil || payload.asset.catChirpDelay != nil
 
         let doorSound = Task { @MainActor in
-            guard shouldPlaySounds else { return }
-            guard await sleepUnlessCancelled(for: asset.doorCreakDelay) else { return }
+            guard shouldPlaySounds, let delay = payload.asset.doorCreakDelay else { return }
+            guard await sleepUnlessCancelled(for: delay) else { return }
             soundPlayer.play(.doorCreak)
         }
 
         let chirpSound = Task { @MainActor in
-            guard shouldPlaySounds else { return }
-            guard await sleepUnlessCancelled(for: asset.catChirpDelay) else { return }
+            guard shouldPlaySounds, let delay = payload.asset.catChirpDelay else { return }
+            guard await sleepUnlessCancelled(for: delay) else { return }
             soundPlayer.play(.catChirp)
         }
 
         let sparkleSound = Task { @MainActor in
-            guard shouldPlaySounds, payload.kind == .fullyCharged else { return }
+            guard payload.asset == .catDoor, payload.kind == .fullyCharged else { return }
             guard await sleepUnlessCancelled(for: asset.sparkleDelay) else { return }
             soundPlayer.play(.sparkle)
         }
@@ -122,7 +122,20 @@ struct OverlayContainerView: View {
         blurRadius = 0
         isFinishing = false
 
+        let doorSound = Task { @MainActor in
+            guard let delay = payload.asset.doorCreakDelay else { return }
+            guard await sleepUnlessCancelled(for: delay) else { return }
+            soundPlayer.play(.doorCreak)
+        }
+
+        let chirpSound = Task { @MainActor in
+            guard let delay = payload.asset.catChirpDelay else { return }
+            guard await sleepUnlessCancelled(for: delay) else { return }
+            soundPlayer.play(.catChirp)
+        }
+
         guard await sleepUnlessCancelled(for: payload.asset.dismissDelay) else { return }
+        _ = await (doorSound.value, chirpSound.value)
 
         isFinishing = true
         withAnimation(.easeOut(duration: 0.45)) {
