@@ -7,14 +7,13 @@ import Observation
 final class AppModel {
     var appLanguage: AppLanguage
     var preferredSide: ScreenSide
-    var selectedAnimationAsset: OverlayAnimationAsset
+    var chargeStartAssetReference: OverlayAssetReference
+    var fullChargeAssetReference: OverlayAssetReference
     var soundEnabled: Bool
     var autoMonitorEnabled: Bool
     var launchAtLoginEnabled: Bool
 
-    var chargeTargetFollowsSystem: Bool
     var chargeTargetLevel: Int
-    var systemChargeLimit: Int?
 
     var previewBatteryLevel: Double
     var latestBattery: BatterySnapshot?
@@ -28,6 +27,13 @@ final class AppModel {
     var licenseInfoMessage: String?
     var licenseErrorMessage: String?
     var licenseActivityText: String?
+    var assetLibraryInfoMessage: String?
+    var assetLibraryErrorMessage: String?
+    var assetLibraryActivityText: String?
+    var downloadableAssetCatalog: [OverlayAssetCatalogEntry]
+    var installedOverlayAssets: [InstalledOverlayAsset]
+    var downloadingAssetIDs: Set<String>
+    var deletingAssetIDs: Set<String>
     let entitlementStore: EntitlementStore
 
     private var lastTriggerAt: Date?
@@ -36,6 +42,8 @@ final class AppModel {
     private let launchAtLogin: LaunchAtLogin
     private let licensingService: LemonLicenseService
     private let checkoutService: ProCheckoutService
+    private let assetLibrary: OverlayAssetLibrary
+    private var downloadedOverlayAssetRecords: [DownloadedOverlayAssetRecord]
     private var licenseRevision = 0
     private var checkoutPollingTask: Task<Void, Never>?
     let soundPlayer: SoundPlayer
@@ -54,20 +62,25 @@ final class AppModel {
         let initialLanguage = UserSettings.appLanguage
         self.entitlementStore = entitlementStore
         appLanguage = initialLanguage
-        licensingService = LemonLicenseService(
+        let licensingService = LemonLicenseService(
             currentState: { entitlementStore.state },
             currentLanguage: { UserSettings.appLanguage }
         )
+        self.licensingService = licensingService
         checkoutService = ProCheckoutService(configuration: licensingService.configuration)
+        let assetLibrary = OverlayAssetLibrary(configuration: licensingService.configuration)
+        self.assetLibrary = assetLibrary
+        let initialDownloadedAssets = assetLibrary.loadDownloadedAssets()
+        downloadedOverlayAssetRecords = initialDownloadedAssets
 
         preferredSide = UserSettings.preferredSide
-        selectedAnimationAsset = UserSettings.selectedAnimationAsset
+        let assignments = UserSettings.animationAssignments
+        chargeStartAssetReference = assignments[.chargeStarted] ?? .bundled(.catDoor)
+        fullChargeAssetReference = assignments[.fullyCharged] ?? .bundled(.fullBelly)
         soundEnabled = false
         autoMonitorEnabled = UserSettings.autoMonitorEnabled
         launchAtLoginEnabled = UserSettings.launchAtLoginEnabled
-        chargeTargetFollowsSystem = UserSettings.chargeTargetFollowsSystem
         chargeTargetLevel = UserSettings.chargeTargetLevel
-        systemChargeLimit = ChargeLimitReader.readSystemChargeLimit()
         previewBatteryLevel = 38
         batteryMonitoringAvailable = true
         currentPowerMode = PowerModeReader.readCurrentMode(isPluggedIn: nil)
@@ -78,20 +91,32 @@ final class AppModel {
         licenseInfoMessage = nil
         licenseErrorMessage = nil
         licenseActivityText = nil
+        assetLibraryInfoMessage = nil
+        assetLibraryErrorMessage = nil
+        assetLibraryActivityText = nil
+        downloadableAssetCatalog = []
+        installedOverlayAssets = assetLibrary.installedAssets(downloadedAssets: initialDownloadedAssets)
+        downloadingAssetIDs = []
+        deletingAssetIDs = []
 
         self.soundPlayer.isEnabled = false
         refreshLaunchAtLoginState()
-        syncChargeTargetWithSystemIfNeeded()
         self.entitlementStore.apply(licensingService.sanitizeInitialState(loadedLicenseState))
+        sanitizeAnimationAssignments()
     }
 
     /// 실제로 완충 트리거에 사용할 기준값.
-    /// 시스템 연동 모드에서는 읽어온 값(없으면 100)을 사용하고, 수동 모드에서는 사용자 지정값을 사용한다.
+    /// 완충 목표는 항상 사용자가 직접 지정한 값을 사용한다.
     var effectiveChargeTarget: Int {
-        if chargeTargetFollowsSystem {
-            return systemChargeLimit ?? 100
-        }
         return chargeTargetLevel
+    }
+
+    var previewEventKind: OverlayEventKind {
+        Int(previewBatteryLevel.rounded()) >= effectiveChargeTarget ? .fullyCharged : .chargeStarted
+    }
+
+    var previewAsset: InstalledOverlayAsset {
+        resolvedAsset(for: previewEventKind)
     }
 
     var menuBarBatteryText: String? {
@@ -124,6 +149,18 @@ final class AppModel {
 
     var canStartProCheckout: Bool {
         licenseConfiguration.hasCheckoutEntryPoint
+    }
+
+    var canCustomizeAnimations: Bool {
+        entitlementStore.isEnabled(.animationCustomization)
+    }
+
+    var canManageDownloadableAssets: Bool {
+        entitlementStore.isEnabled(.downloadableAssets)
+    }
+
+    var hasAssetCatalog: Bool {
+        licenseConfiguration.assetCatalogURL != nil
     }
 
     var hasStoredLicense: Bool {
@@ -187,17 +224,13 @@ final class AppModel {
     func start() {
         Task {
             await refreshLicense(force: false, reason: "launch", showsProgress: false)
+            await refreshDownloadableAssets(showsProgress: false)
         }
     }
 
     func updatePreferredSide(_ side: ScreenSide) {
         preferredSide = side
         UserSettings.preferredSide = side
-    }
-
-    func updateSelectedAnimationAsset(_ asset: OverlayAnimationAsset) {
-        selectedAnimationAsset = asset
-        UserSettings.selectedAnimationAsset = asset
     }
 
     func updateSoundEnabled(_ isEnabled: Bool) {
@@ -211,34 +244,156 @@ final class AppModel {
         UserSettings.autoMonitorEnabled = isEnabled
     }
 
-    func updateChargeTargetFollowsSystem(_ followsSystem: Bool) {
-        chargeTargetFollowsSystem = followsSystem
-        UserSettings.chargeTargetFollowsSystem = followsSystem
-        syncChargeTargetWithSystemIfNeeded()
-    }
-
     func updateChargeTargetLevel(_ level: Int) {
         let clamped = ChargeTarget.clamp(level)
         chargeTargetLevel = clamped
         UserSettings.chargeTargetLevel = clamped
     }
 
-    func refreshSystemChargeLimit() {
-        let latest = ChargeLimitReader.readSystemChargeLimit()
-        // 값이 바뀐 경우에만 반영 — Observable이 매 폴링마다 notify해서
-        // GIFAnimationView가 리셋되는 것을 방지한다.
-        if latest != systemChargeLimit {
-            systemChargeLimit = latest
+    func assetReference(for event: OverlayEventKind) -> OverlayAssetReference {
+        let storedReference: OverlayAssetReference = switch event {
+        case .chargeStarted:
+            chargeStartAssetReference
+        case .fullyCharged:
+            fullChargeAssetReference
         }
-        syncChargeTargetWithSystemIfNeeded()
+
+        if canCustomizeAnimations {
+            return storedReference
+        }
+        return event.defaultAssetReference
     }
 
-    private func syncChargeTargetWithSystemIfNeeded() {
-        guard chargeTargetFollowsSystem, let systemChargeLimit else { return }
-        let clamped = ChargeTarget.clamp(systemChargeLimit)
-        if chargeTargetLevel != clamped {
-            chargeTargetLevel = clamped
-            UserSettings.chargeTargetLevel = clamped
+    func resolvedAsset(for event: OverlayEventKind) -> InstalledOverlayAsset {
+        let reference = assetReference(for: event)
+        if let resolved = assetLibrary.resolve(reference: reference, downloadedAssets: downloadedOverlayAssetRecords) {
+            return resolved
+        }
+
+        let fallback = assetLibrary.resolve(
+            reference: event.defaultAssetReference,
+            downloadedAssets: downloadedOverlayAssetRecords
+        )
+        if let fallback {
+            return fallback
+        }
+
+        return assetLibrary.installedAssets(downloadedAssets: []).first!
+    }
+
+    func displayTitle(for asset: InstalledOverlayAsset) -> String {
+        if let bundledAsset = asset.bundledAsset {
+            return copy.title(for: bundledAsset)
+        }
+        return asset.customTitle ?? asset.reference.value
+    }
+
+    func assignedAssetTitle(for event: OverlayEventKind) -> String {
+        displayTitle(for: resolvedAsset(for: event))
+    }
+
+    func updateAnimationAssignment(
+        for event: OverlayEventKind,
+        to reference: OverlayAssetReference
+    ) {
+        guard canCustomizeAnimations else { return }
+
+        switch event {
+        case .chargeStarted:
+            chargeStartAssetReference = reference
+        case .fullyCharged:
+            fullChargeAssetReference = reference
+        }
+
+        persistAnimationAssignments()
+    }
+
+    func refreshDownloadableAssets(showsProgress: Bool) async {
+        guard hasAssetCatalog else { return }
+
+        if showsProgress {
+            assetLibraryActivityText = copy.loadingAnimationCatalog
+        }
+
+        defer {
+            if showsProgress {
+                assetLibraryActivityText = nil
+            }
+        }
+
+        do {
+            downloadableAssetCatalog = try await assetLibrary.fetchCatalog()
+            assetLibraryErrorMessage = nil
+        } catch {
+            if showsProgress {
+                assetLibraryErrorMessage = localizedAssetMessage(for: error)
+            }
+        }
+    }
+
+    func downloadOverlayAsset(_ asset: OverlayAssetCatalogEntry) async {
+        guard canManageDownloadableAssets else { return }
+        guard downloadingAssetIDs.contains(asset.id) == false else { return }
+        guard let authorization = licensingService.assetDownloadAuthorization(allowsAuthenticationUI: true) else {
+            assetLibraryErrorMessage = copy.noSavedProLicense
+            return
+        }
+
+        downloadingAssetIDs.insert(asset.id)
+        assetLibraryInfoMessage = nil
+        assetLibraryErrorMessage = nil
+        assetLibraryActivityText = copy.downloadingAnimation(name: asset.title)
+
+        defer {
+            downloadingAssetIDs.remove(asset.id)
+            if downloadingAssetIDs.isEmpty {
+                assetLibraryActivityText = nil
+            }
+        }
+
+        do {
+            downloadedOverlayAssetRecords = try await assetLibrary.download(
+                asset,
+                authorization: authorization,
+                downloadedAssets: downloadedOverlayAssetRecords
+            )
+            installedOverlayAssets = assetLibrary.installedAssets(downloadedAssets: downloadedOverlayAssetRecords)
+            sanitizeAnimationAssignments()
+            assetLibraryInfoMessage = copy.downloadedAnimation(name: asset.title)
+            assetLibraryErrorMessage = nil
+        } catch {
+            assetLibraryErrorMessage = localizedAssetMessage(for: error)
+        }
+    }
+
+    func deleteOverlayAsset(_ asset: InstalledOverlayAsset) async {
+        guard asset.isDownloaded else { return }
+        guard deletingAssetIDs.contains(asset.id) == false else { return }
+
+        deletingAssetIDs.insert(asset.id)
+        assetLibraryInfoMessage = nil
+        assetLibraryErrorMessage = nil
+        assetLibraryActivityText = copy.removingAnimation(name: displayTitle(for: asset))
+
+        defer {
+            deletingAssetIDs.remove(asset.id)
+            if deletingAssetIDs.isEmpty {
+                assetLibraryActivityText = nil
+            }
+        }
+
+        do {
+            downloadedOverlayAssetRecords = try assetLibrary.deleteDownloadedAsset(
+                id: asset.reference.value,
+                downloadedAssets: downloadedOverlayAssetRecords
+            )
+            installedOverlayAssets = assetLibrary.installedAssets(downloadedAssets: downloadedOverlayAssetRecords)
+            resetAssignmentsIfNeeded(removedReference: asset.reference)
+            sanitizeAnimationAssignments()
+            assetLibraryInfoMessage = copy.removedAnimation(name: displayTitle(for: asset))
+            assetLibraryErrorMessage = nil
+        } catch {
+            assetLibraryErrorMessage = localizedAssetMessage(for: error)
         }
     }
 
@@ -288,13 +443,14 @@ final class AppModel {
 
         lastTriggerAt = Date()
         lastTriggerKind = kind
+        let asset = resolvedAsset(for: kind)
 
         let payload = OverlayPayload(
             id: UUID(),
             kind: kind,
             batteryLevel: resolvedLevel,
             side: preferredSide,
-            asset: selectedAnimationAsset,
+            asset: asset,
             animationType: AnimationPicker.selectAnimation(for: kind)
         )
 
@@ -303,7 +459,7 @@ final class AppModel {
             source: source,
             level: resolvedLevel,
             side: preferredSide,
-            asset: selectedAnimationAsset
+            assetTitle: displayTitle(for: asset)
         )
         overlayPresenter?.present(payload: payload)
     }
@@ -684,6 +840,52 @@ final class AppModel {
         launchAtLoginEnabled = launchAtLogin.isEnabled || UserSettings.launchAtLoginEnabled
     }
 
+    private func persistAnimationAssignments() {
+        UserSettings.animationAssignments = [
+            .chargeStarted: chargeStartAssetReference,
+            .fullyCharged: fullChargeAssetReference
+        ]
+    }
+
+    private func sanitizeAnimationAssignments() {
+        let installedReferenceIDs = Set(installedOverlayAssets.map(\.reference.id))
+        var didChange = false
+
+        if installedReferenceIDs.contains(chargeStartAssetReference.id) == false,
+           chargeStartAssetReference != .bundled(.catDoor) {
+            chargeStartAssetReference = .bundled(.catDoor)
+            didChange = true
+        }
+
+        if installedReferenceIDs.contains(fullChargeAssetReference.id) == false,
+           fullChargeAssetReference != .bundled(.fullBelly) {
+            fullChargeAssetReference = .bundled(.fullBelly)
+            didChange = true
+        }
+
+        if didChange {
+            persistAnimationAssignments()
+        }
+    }
+
+    private func resetAssignmentsIfNeeded(removedReference: OverlayAssetReference) {
+        var didChange = false
+
+        if chargeStartAssetReference == removedReference {
+            chargeStartAssetReference = .bundled(.catDoor)
+            didChange = true
+        }
+
+        if fullChargeAssetReference == removedReference {
+            fullChargeAssetReference = .bundled(.fullBelly)
+            didChange = true
+        }
+
+        if didChange {
+            persistAnimationAssignments()
+        }
+    }
+
     private func formatted(date: Date?) -> String {
         guard let date else { return copy.notYet }
 
@@ -715,6 +917,22 @@ final class AppModel {
         case let .server(message):
             return message
         }
+    }
+
+    private func localizedAssetMessage(for error: Error) -> String {
+        if let error = error as? OverlayAssetLibraryError {
+            switch error {
+            case .notConfigured:
+                return copy.downloadableAssetsNotConfigured
+            case .catalogUnavailable, .invalidCatalog:
+                return copy.couldNotLoadAnimationCatalog
+            case .downloadFailed:
+                return copy.couldNotDownloadAnimation
+            case .localFileMissing:
+                return copy.downloadedAnimationMissing
+            }
+        }
+        return error.localizedDescription
     }
 
     private func maskLicenseKey(_ licenseKey: String) -> String? {

@@ -28,7 +28,7 @@ final class EntitlementStore {
 
     func isEnabled(_ feature: ProFeature) -> Bool {
         switch feature {
-        case .futureFeature:
+        case .animationCustomization, .downloadableAssets:
             return state.status.allowsProAccess
         }
     }

@@ -3,8 +3,8 @@ import SwiftUI
 struct CornerPreviewView: View {
     let language: AppLanguage
     let side: ScreenSide
-    let asset: OverlayAnimationAsset
-    @Binding var previewLevel: Double
+    let asset: InstalledOverlayAsset
+    let previewStateTitle: String
 
     private var previewMediaSize: CGSize {
         asset.previewDisplaySize
@@ -25,12 +25,13 @@ struct CornerPreviewView: View {
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(Palette.ink)
                 Spacer()
-                Text("\(Int(previewLevel.rounded()))%")
-                    .font(.system(size: 14, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Palette.cocoa)
+
+                Text(previewStateTitle)
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(Palette.ink.opacity(0.72))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Palette.cocoa.opacity(0.1), in: Capsule())
+                    .background(Palette.ink.opacity(0.08), in: Capsule())
             }
 
             ZStack {
@@ -97,10 +98,6 @@ struct CornerPreviewView: View {
             }
             .frame(height: 220)
             .shadow(color: Palette.shadow.opacity(0.06), radius: 16, x: 0, y: 8)
-            
-            Slider(value: $previewLevel, in: 1...100, step: 1)
-                .tint(Palette.amber)
-                .padding(.top, 4)
         }
     }
 
@@ -116,7 +113,7 @@ struct CornerPreviewView: View {
                 asset: videoAsset,
                 loop: true,
                 isMuted: true,
-                playbackID: asset.rawValue
+                playbackID: asset.id
             )
         }
     }

@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import express from 'express';
 
 import { loadConfig } from './config.js';
@@ -14,6 +15,7 @@ import { LemonClient } from './lemon-client.js';
 import { TossAPIError, TossClient } from './toss-client.js';
 import {
   activateLicenseSchema,
+  assetDownloadRequestSchema,
   claimCheckoutSessionSchema,
   createCheckoutSessionSchema,
   deactivateLicenseSchema,
@@ -60,6 +62,162 @@ function publicUrl(pathname) {
 
 function appOpenUrl(sessionId) {
   return `${config.appCustomScheme}://checkout-complete?session_id=${encodeURIComponent(sessionId)}`;
+}
+
+function isSafeAssetPath(pathname) {
+  if (!pathname) {
+    return false;
+  }
+
+  return pathname.split('/').every((segment) => {
+    const trimmed = segment.trim();
+    return trimmed && trimmed !== '.' && trimmed !== '..';
+  });
+}
+
+function loadAssetCatalog() {
+  let rawCatalog;
+  try {
+    rawCatalog = fs.readFileSync(config.assetCatalogPath, 'utf8');
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+      return [];
+    }
+    throw error;
+  }
+
+  const parsed = JSON.parse(rawCatalog);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed.assets) === false) {
+    throw new Error('Asset catalog must be an object with an assets array.');
+  }
+
+  return parsed.assets.flatMap((asset) => {
+    if (!asset || typeof asset !== 'object') {
+      return [];
+    }
+
+    const id = typeof asset.id === 'string' ? asset.id.trim() : '';
+    const title = typeof asset.title === 'string' ? asset.title.trim() : '';
+    const mediaType = asset.mediaType === 'gif' ? 'gif' : asset.mediaType === 'video' ? 'video' : '';
+    if (!id || !title || !mediaType) {
+      return [];
+    }
+
+    const filename = typeof asset.filename === 'string' ? asset.filename.trim() : '';
+    const rawSourceDownloadURL = typeof asset.downloadURL === 'string' ? asset.downloadURL.trim() : '';
+    let sourceDownloadURL = '';
+    if (rawSourceDownloadURL) {
+      try {
+        sourceDownloadURL = new URL(rawSourceDownloadURL).toString();
+      } catch {
+        sourceDownloadURL = '';
+      }
+    }
+
+    if (!filename && !sourceDownloadURL) {
+      return [];
+    }
+
+    const previewHeight = Number(asset.previewHeight);
+    const overlayHeight = Number(asset.overlayHeight);
+    const recommendedEvent = asset.recommendedEvent === 'chargeStarted' || asset.recommendedEvent === 'fullyCharged'
+      ? asset.recommendedEvent
+      : null;
+
+    return [{
+      id,
+      title,
+      mediaType,
+      downloadURL: publicUrl(`/api/assets/download/${encodeURIComponent(id)}`),
+      sourceDownloadURL,
+      filename,
+      systemImage: typeof asset.systemImage === 'string' && asset.systemImage.trim()
+        ? asset.systemImage.trim()
+        : null,
+      soundProfile: asset.soundProfile === 'doorCat' ? 'doorCat' : 'silent',
+      previewHeight: Number.isFinite(previewHeight) && previewHeight > 0 ? previewHeight : null,
+      overlayHeight: Number.isFinite(overlayHeight) && overlayHeight > 0 ? overlayHeight : null,
+      recommendedEvent
+    }];
+  });
+}
+
+function serializeAssetForClient(asset) {
+  return {
+    id: asset.id,
+    title: asset.title,
+    mediaType: asset.mediaType,
+    downloadURL: asset.downloadURL,
+    systemImage: asset.systemImage,
+    soundProfile: asset.soundProfile,
+    previewHeight: asset.previewHeight,
+    overlayHeight: asset.overlayHeight,
+    recommendedEvent: asset.recommendedEvent
+  };
+}
+
+function findAssetById(assetId) {
+  return loadAssetCatalog().find((asset) => asset.id === assetId) ?? null;
+}
+
+async function authorizeAssetDownload({ licenseKey, instanceId }) {
+  if (licenseKey.startsWith('ccp_')) {
+    const license = database.getLicense(licenseKey);
+    if (!license || license.provider !== 'chargeCat') {
+      return { ok: false, status: 403, error: 'This Pro license could not be found.' };
+    }
+
+    if (license.status !== 'active') {
+      return { ok: false, status: 403, error: 'This Pro license is no longer active.' };
+    }
+
+    const instance = database.getLicenseInstance({ licenseKey, instanceId });
+    if (!instance || instance.status !== 'active') {
+      return { ok: false, status: 403, error: 'This Mac is not currently activated for Pro downloads.' };
+    }
+
+    database.touchLicenseInstance(instanceId);
+    return { ok: true };
+  }
+
+  if (config.isLemonConfigured === false) {
+    return { ok: false, status: 503, error: 'Lemon validation is not configured on this backend.' };
+  }
+
+  try {
+    const response = await lemonClient.validateLicense({ licenseKey, instanceId });
+    if (!response?.valid) {
+      return {
+        ok: false,
+        status: 403,
+        error: response?.error || 'This Pro license could not be verified for downloads.'
+      };
+    }
+
+    const licenseStatus = response?.license_key?.status;
+    if (licenseStatus === 'disabled' || licenseStatus === 'expired') {
+      return { ok: false, status: 403, error: 'This Pro license is no longer active.' };
+    }
+
+    const meta = response?.meta ?? {};
+    if (Number(meta.store_id) !== config.lemonStoreId ||
+        Number(meta.product_id) !== config.lemonProductId ||
+        Number(meta.variant_id) !== config.lemonVariantId) {
+      return { ok: false, status: 403, error: 'This license belongs to a different product.' };
+    }
+
+    if (response?.instance?.id !== instanceId) {
+      return { ok: false, status: 403, error: 'This Mac activation could not be verified.' };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 502,
+      error: error instanceof Error ? error.message : 'Could not verify this Pro license right now.'
+    };
+  }
 }
 
 function chooseCheckoutProvider(requestedProvider) {
@@ -298,12 +456,111 @@ async function confirmTossPayment({ session, paymentKey, orderId, amount }) {
 }
 
 app.get('/healthz', (_request, response) => {
+  let assetCount = 0;
+  try {
+    assetCount = loadAssetCatalog().length;
+  } catch {
+    assetCount = 0;
+  }
+
   response.json({
     ok: true,
     lemonConfigured: config.isLemonConfigured,
     tossConfigured: config.isTossConfigured,
-    defaultCheckoutProvider: config.defaultCheckoutProvider
+    defaultCheckoutProvider: config.defaultCheckoutProvider,
+    assetCount
   });
+});
+
+app.get('/api/assets/catalog', (_request, response) => {
+  try {
+    response.json({
+      assets: loadAssetCatalog().map(serializeAssetForClient)
+    });
+  } catch (error) {
+    response.status(500).json({
+      error: error instanceof Error ? error.message : 'Could not load the asset catalog.'
+    });
+  }
+});
+
+app.get('/api/assets/download/:assetId', async (request, response) => {
+  const parsed = assetDownloadRequestSchema.safeParse({
+    assetId: request.params.assetId,
+    licenseKey: request.get('X-ChargeCat-License-Key'),
+    instanceId: request.get('X-ChargeCat-Instance-ID')
+  });
+
+  if (!parsed.success) {
+    response.status(400).json({
+      error: 'A valid Pro license is required to download this asset.'
+    });
+    return;
+  }
+
+  const asset = findAssetById(parsed.data.assetId);
+  if (!asset) {
+    response.status(404).json({
+      error: 'Asset not found.'
+    });
+    return;
+  }
+
+  const authorization = await authorizeAssetDownload({
+    licenseKey: parsed.data.licenseKey,
+    instanceId: parsed.data.instanceId
+  });
+  if (!authorization.ok) {
+    response.status(authorization.status).json({
+      error: authorization.error
+    });
+    return;
+  }
+
+  if (asset.filename) {
+    if (isSafeAssetPath(asset.filename) === false) {
+      response.status(400).json({
+        error: 'Asset filename is not valid.'
+      });
+      return;
+    }
+
+    response.sendFile(asset.filename, {
+      root: config.assetFilesPath,
+      dotfiles: 'deny',
+      cacheControl: true,
+      maxAge: '1h'
+    }, (error) => {
+      if (error && response.headersSent === false) {
+        response.status(error.statusCode || 404).json({
+          error: 'The requested asset file could not be found.'
+        });
+      }
+    });
+    return;
+  }
+
+  try {
+    const upstream = await fetch(asset.sourceDownloadURL);
+    if (!upstream.ok) {
+      response.status(502).json({
+        error: 'The upstream asset file could not be fetched.'
+      });
+      return;
+    }
+
+    const contentType = upstream.headers.get('content-type');
+    if (contentType) {
+      response.setHeader('Content-Type', contentType);
+    }
+    response.setHeader('Cache-Control', 'private, max-age=3600');
+    const buffer = Buffer.from(await upstream.arrayBuffer());
+    response.status(200).send(buffer);
+  } catch (error) {
+    response.status(502).json({
+      error: error instanceof Error ? error.message : 'The upstream asset file could not be fetched.'
+    });
+  }
 });
 
 app.post('/api/checkout-sessions', express.json(), async (request, response) => {

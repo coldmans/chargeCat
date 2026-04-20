@@ -12,6 +12,7 @@ Charge Cat Pro now uses a small backend so the macOS app can open checkout in th
 - Re-opens Charge Cat after checkout finishes
 - Exposes backend-issued `ccp_...` license activation / validation / deactivation endpoints
 - Keeps Lemon checkout available for global purchases
+- Exposes a backend-managed downloadable animation catalog for Pro asset packs
 
 ## Checkout Providers
 
@@ -32,6 +33,8 @@ Charge Cat Pro now uses a small backend so the macOS app can open checkout in th
 - `POST /api/licenses/activate`
 - `POST /api/licenses/validate`
 - `POST /api/licenses/deactivate`
+- `GET /api/assets/catalog`
+- `GET /api/assets/download/:assetId`
 - `POST /webhooks/lemon`
 - `GET /buy/pro`
 - `GET /checkout/toss/:sessionId`
@@ -46,6 +49,7 @@ Charge Cat Pro now uses a small backend so the macOS app can open checkout in th
 2. Fill in your public base URL and at least one provider:
    - Toss: `TOSS_WIDGET_CLIENT_KEY`, `TOSS_SECRET_KEY`
    - Lemon: `LEMON_API_KEY`, `LEMON_WEBHOOK_SECRET`, `LEMON_STORE_ID`, `LEMON_PRODUCT_ID`, `LEMON_VARIANT_ID`
+3. Optional: add downloadable Pro animation files under `backend/assets/files/` and list them in `backend/assets/catalog.json`
 3. Install dependencies
 4. Run the server
 
@@ -85,6 +89,17 @@ Subscribe at minimum to:
 - `order_created`
 
 Use the same webhook signing secret in Lemon and `LEMON_WEBHOOK_SECRET`.
+
+## Downloadable Asset Packs
+
+- The app reads `GET /api/assets/catalog` to show downloadable Pro animation packs.
+- Actual downloads flow through `GET /api/assets/download/:assetId`, and the backend verifies that the requester has an active Pro license on this Mac before serving the file.
+- Put actual files in `backend/assets/files/`.
+- Add each pack to `backend/assets/catalog.json`.
+- Each item may use either:
+  - `filename`: served by this backend after Pro validation
+  - `downloadURL`: absolute URL if you want the backend to proxy another file host after Pro validation
+- A starter example is documented in [backend/assets/README.md](/Users/coldmans/Documents/GitHub/chargeCat/backend/assets/README.md).
 
 ## Notes
 

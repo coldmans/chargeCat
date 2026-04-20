@@ -55,6 +55,10 @@ struct LicensingConfiguration: Decodable {
         backendBaseURL?.appendingPathComponent("api/checkout-sessions")
     }
 
+    var assetCatalogURL: URL? {
+        backendBaseURL?.appendingPathComponent("api/assets/catalog")
+    }
+
     var backendBuyURL: URL? {
         backendBaseURL?.appendingPathComponent("buy/pro")
     }

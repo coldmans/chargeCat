@@ -71,7 +71,7 @@ struct OverlayContainerView: View {
         }
 
         let sparkleSound = Task { @MainActor in
-            guard payload.asset == .catDoor, payload.kind == .fullyCharged else { return }
+            guard payload.asset.bundledAsset == .catDoor, payload.kind == .fullyCharged else { return }
             guard await sleepUnlessCancelled(for: asset.sparkleDelay) else { return }
             soundPlayer.play(.sparkle)
         }

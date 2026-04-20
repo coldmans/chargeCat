@@ -38,11 +38,8 @@ struct ControlPanelView: View {
                         CornerPreviewView(
                             language: model.appLanguage,
                             side: model.preferredSide,
-                            asset: model.selectedAnimationAsset,
-                            previewLevel: Binding(
-                                get: { model.previewBatteryLevel },
-                                set: { model.previewBatteryLevel = $0 }
-                            )
+                            asset: model.previewAsset,
+                            previewStateTitle: model.copy.title(for: model.previewEventKind)
                         )
                         ProSection(model: model)
                         ControlsSection(model: model)

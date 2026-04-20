@@ -116,6 +116,47 @@ final class GIFAsset: @unchecked Sendable {
         self.frameDurations = resolvedFrameDurations
     }
 
+    init(
+        url: URL,
+        previewFrame: Int,
+        onboardingFrame: Int,
+        doorCreakFrame: Int,
+        catChirpFrame: Int,
+        sparkleFrame: Int
+    ) {
+        self.url = url
+        self.previewFrame = previewFrame
+        self.onboardingFrame = onboardingFrame
+        self.doorCreakFrame = doorCreakFrame
+        self.catChirpFrame = catChirpFrame
+        self.sparkleFrame = sparkleFrame
+
+        let source = CGImageSourceCreateWithURL(url as CFURL, nil)
+        self.source = source
+        self.frameCount = source.map(CGImageSourceGetCount) ?? 1
+        if let source,
+           let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+           let width = properties[kCGImagePropertyPixelWidth] as? CGFloat,
+           let height = properties[kCGImagePropertyPixelHeight] as? CGFloat,
+           height > 0 {
+            self.pixelSize = CGSize(width: width, height: height)
+        } else {
+            self.pixelSize = CGSize(width: 1, height: 1)
+        }
+
+        var totalDuration: TimeInterval = 0
+        var resolvedFrameDurations: [TimeInterval] = []
+        if let source {
+            for index in 0..<CGImageSourceGetCount(source) {
+                let frameDuration = Self.frameDuration(source: source, index: index)
+                totalDuration += frameDuration
+                resolvedFrameDurations.append(frameDuration)
+            }
+        }
+        self.duration = max(totalDuration, 0.1)
+        self.frameDurations = resolvedFrameDurations
+    }
+
     var animatedImage: NSImage? {
         NSImage(contentsOf: url)
     }

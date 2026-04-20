@@ -48,7 +48,8 @@ enum LicenseStatus: String, Codable {
 }
 
 enum ProFeature: String, CaseIterable, Codable {
-    case futureFeature
+    case animationCustomization
+    case downloadableAssets
 }
 
 enum LicenseWarningState: String, Codable {

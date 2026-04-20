@@ -32,21 +32,28 @@ enum UserSettings {
         }
     }
 
-    static var selectedAnimationAsset: OverlayAnimationAsset {
+    static var animationAssignments: [OverlayEventKind: OverlayAssetReference] {
         get {
-            guard let rawValue = defaults.string(forKey: "selectedAnimationAsset") else {
-                return .catDoor
+            if let data = defaults.data(forKey: "animationAssignments"),
+               let stored = try? JSONDecoder().decode([String: OverlayAssetReference].self, from: data) {
+                var resolved: [OverlayEventKind: OverlayAssetReference] = [:]
+                for event in OverlayEventKind.allCases {
+                    resolved[event] = stored[event.rawValue] ?? migratedLegacyAssignment(for: event)
+                }
+                return resolved
             }
 
-            if rawValue == "doorCatHD" {
-                defaults.set(OverlayAnimationAsset.catDoor.rawValue, forKey: "selectedAnimationAsset")
-                return .catDoor
-            }
-
-            return OverlayAnimationAsset(rawValue: rawValue) ?? .catDoor
+            return Dictionary(uniqueKeysWithValues: OverlayEventKind.allCases.map { event in
+                (event, migratedLegacyAssignment(for: event))
+            })
         }
         set {
-            defaults.set(newValue.rawValue, forKey: "selectedAnimationAsset")
+            let encoded = Dictionary(uniqueKeysWithValues: newValue.map { key, value in
+                (key.rawValue, value)
+            })
+            if let data = try? JSONEncoder().encode(encoded) {
+                defaults.set(data, forKey: "animationAssignments")
+            }
         }
     }
 
@@ -86,15 +93,6 @@ enum UserSettings {
         }
     }
 
-    static var chargeTargetFollowsSystem: Bool {
-        get {
-            defaults.object(forKey: "chargeTargetFollowsSystem") as? Bool ?? true
-        }
-        set {
-            defaults.set(newValue, forKey: "chargeTargetFollowsSystem")
-        }
-    }
-
     /// 사용자가 수동으로 지정한 완충 기준(%). 50~100, 5% 단위.
     static var chargeTargetLevel: Int {
         get {
@@ -116,5 +114,24 @@ enum ChargeTarget {
         let bounded = max(minimum, min(maximum, value))
         let snapped = Int((Double(bounded - minimum) / Double(step)).rounded()) * step + minimum
         return max(minimum, min(maximum, snapped))
+    }
+}
+
+private extension UserSettings {
+    static func migratedLegacyAssignment(for event: OverlayEventKind) -> OverlayAssetReference {
+        guard let rawValue = defaults.string(forKey: "selectedAnimationAsset") else {
+            return event.defaultAssetReference
+        }
+
+        if rawValue == "doorCatHD" {
+            defaults.removeObject(forKey: "selectedAnimationAsset")
+            return event.defaultAssetReference
+        }
+
+        if event == .chargeStarted, let legacy = OverlayAnimationAsset(rawValue: rawValue) {
+            return .bundled(legacy)
+        }
+
+        return event.defaultAssetReference
     }
 }

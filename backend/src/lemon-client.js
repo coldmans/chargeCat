@@ -111,4 +111,31 @@ export class LemonClient {
       url: checkoutUrl
     };
   }
+
+  async validateLicense({ licenseKey, instanceId }) {
+    ensureConfigured(this.config);
+
+    const body = new URLSearchParams();
+    body.set('license_key', licenseKey);
+    if (instanceId) {
+      body.set('instance_id', instanceId);
+    }
+
+    const response = await fetch('https://api.lemonsqueezy.com/v1/licenses/validate', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: body.toString()
+    });
+
+    const payload = await parseJson(response);
+    if (!response.ok) {
+      const message = payload?.error || payload?.message || `Lemon license validation failed (${response.status}).`;
+      throw new Error(message);
+    }
+
+    return payload;
+  }
 }

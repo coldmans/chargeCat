@@ -1,8 +1,10 @@
 import Foundation
 
-enum OverlayEventKind: String {
+enum OverlayEventKind: String, CaseIterable, Codable, Identifiable {
     case chargeStarted
     case fullyCharged
+
+    var id: String { rawValue }
 
     var title: String {
         switch self {
@@ -19,7 +21,7 @@ struct OverlayPayload: Identifiable, Equatable {
     let kind: OverlayEventKind
     let batteryLevel: Int
     let side: ScreenSide
-    let asset: OverlayAnimationAsset
+    let asset: InstalledOverlayAsset
     let animationType: AnimationType
 
     var condition: CatCondition {

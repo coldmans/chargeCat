@@ -137,6 +137,24 @@ final class VideoAsset: @unchecked Sendable {
         }
     }
 
+    init(url: URL) {
+        self.url = url
+        self.resourceKey = url.absoluteString
+
+        let asset = AVURLAsset(url: url)
+        self.duration = max(asset.duration.seconds, 0.1)
+
+        if let track = asset.tracks(withMediaType: .video).first {
+            let transformed = track.naturalSize.applying(track.preferredTransform)
+            self.pixelSize = CGSize(
+                width: abs(transformed.width),
+                height: abs(transformed.height)
+            )
+        } else {
+            self.pixelSize = CGSize(width: 1, height: 1)
+        }
+    }
+
     var playerItem: AVPlayerItem {
         AVPlayerItem(url: url)
     }

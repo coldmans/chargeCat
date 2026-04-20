@@ -204,6 +204,22 @@ final class LemonLicenseService: Licensing {
         keychain.installationId()
     }
 
+    func assetDownloadAuthorization(allowsAuthenticationUI: Bool) -> OverlayAssetDownloadAuthorization? {
+        let interactionPolicy: KeychainInteractionPolicy = allowsAuthenticationUI ? .allowUI : .failIfPromptRequired
+        guard let credentials = keychain.loadCredentials(interactionPolicy: interactionPolicy),
+              let instanceId = credentials.instanceId,
+              credentials.licenseKey.isEmpty == false,
+              instanceId.isEmpty == false
+        else {
+            return nil
+        }
+
+        return OverlayAssetDownloadAuthorization(
+            licenseKey: credentials.licenseKey,
+            instanceId: instanceId
+        )
+    }
+
     var supportsChargeCatBackendLicensing: Bool {
         configuration.backendBaseURL != nil
     }

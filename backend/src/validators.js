@@ -40,3 +40,9 @@ export const deactivateLicenseSchema = z.object({
   licenseKey: z.string().trim().min(1),
   instanceId: z.string().trim().min(1)
 });
+
+export const assetDownloadRequestSchema = z.object({
+  assetId: z.string().trim().min(1).max(120),
+  licenseKey: z.string().trim().min(1),
+  instanceId: z.string().trim().min(1)
+});

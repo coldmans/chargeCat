@@ -21,20 +21,26 @@ struct ControlsSection: View {
                             .foregroundStyle(Palette.amber)
                     }
 
-                    HStack(spacing: 10) {
-                        ForEach(OverlayAnimationAsset.allCases) { asset in
-                            Button {
-                                model.updateSelectedAnimationAsset(asset)
-                            } label: {
-                                SelectionChip(
-                                    title: model.copy.title(for: asset),
-                                    systemImage: asset.systemImage,
-                                    isSelected: model.selectedAnimationAsset == asset
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
+                    Text(model.copy.animationByEvent)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(Palette.ink.opacity(0.62))
+
+                    AnimationAssignmentRow(model: model, event: .chargeStarted)
+                    AnimationAssignmentRow(model: model, event: .fullyCharged)
+
+                    if model.canCustomizeAnimations == false {
+                        Text(model.copy.proAnimationCustomizationLocked)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(Palette.ink.opacity(0.6))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
+
+                    Divider().background(Palette.ink.opacity(0.05))
+
+                    AnimationDownloadsSection(model: model)
+                }
+                .task {
+                    await model.refreshDownloadableAssets(showsProgress: false)
                 }
                 .padding(.vertical, 14)
                 .padding(.horizontal, 16)
@@ -208,6 +214,237 @@ private struct SelectionChip: View {
     }
 }
 
+private struct AnimationAssignmentRow: View {
+    let model: AppModel
+    let event: OverlayEventKind
+
+    private var selectedReference: OverlayAssetReference {
+        model.assetReference(for: event)
+    }
+
+    private var selectedAsset: InstalledOverlayAsset {
+        model.resolvedAsset(for: event)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(model.copy.title(for: event))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(Palette.ink)
+
+                    Text(model.assignedAssetTitle(for: event))
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(Palette.ink.opacity(0.6))
+                }
+
+                Spacer()
+
+                Text(selectedAsset.isDownloaded ? model.copy.installedBadge : model.copy.bundledBadge)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(Palette.ink.opacity(0.55))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Color.white.opacity(0.85), in: Capsule())
+            }
+
+            if model.canCustomizeAnimations {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(model.installedOverlayAssets) { asset in
+                            Button {
+                                model.updateAnimationAssignment(for: event, to: asset.reference)
+                            } label: {
+                                SelectionChip(
+                                    title: model.displayTitle(for: asset),
+                                    systemImage: asset.systemImage,
+                                    isSelected: selectedReference == asset.reference
+                                )
+                                .frame(minWidth: 138)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+        .padding(12)
+        .background(Color.white.opacity(0.62), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Palette.ink.opacity(0.06), lineWidth: 1)
+        )
+    }
+}
+
+private struct AnimationDownloadsSection: View {
+    let model: AppModel
+
+    private var installedDownloadedAssets: [InstalledOverlayAsset] {
+        model.installedOverlayAssets.filter(\.isDownloaded)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label {
+                    Text(model.copy.downloadableAnimations)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(Palette.ink)
+                } icon: {
+                    Image(systemName: "square.and.arrow.down")
+                        .foregroundStyle(Palette.amber)
+                }
+
+                Spacer()
+
+                Button {
+                    Task { await model.refreshDownloadableAssets(showsProgress: true) }
+                } label: {
+                    Label(model.copy.refreshCatalog, systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(Palette.ink.opacity(0.7))
+            }
+
+            if let message = model.assetLibraryInfoMessage {
+                InlineMessage(text: message, tint: Palette.amber)
+            }
+
+            if let message = model.assetLibraryErrorMessage {
+                InlineMessage(text: message, tint: Palette.coral)
+            }
+
+            if let activity = model.assetLibraryActivityText {
+                HStack(spacing: 8) {
+                    ProgressView().scaleEffect(0.75)
+                    Text(activity)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(Palette.ink.opacity(0.6))
+                }
+            }
+
+            if model.hasAssetCatalog == false {
+                Text(model.copy.downloadableAssetsNotConfigured)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(Palette.ink.opacity(0.55))
+            } else if model.downloadableAssetCatalog.isEmpty {
+                Text(model.copy.noDownloadableAnimationsYet)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(Palette.ink.opacity(0.55))
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(model.downloadableAssetCatalog) { asset in
+                        DownloadableAssetRow(model: model, asset: asset)
+                    }
+                }
+            }
+
+            if installedDownloadedAssets.isEmpty == false {
+                Divider().background(Palette.ink.opacity(0.05))
+
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(installedDownloadedAssets) { asset in
+                        HStack(spacing: 10) {
+                            Label {
+                                Text(model.displayTitle(for: asset))
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .foregroundStyle(Palette.ink)
+                            } icon: {
+                                Image(systemName: asset.systemImage)
+                                    .foregroundStyle(Palette.amber)
+                            }
+
+                            Spacer()
+
+                            Button(model.copy.delete) {
+                                Task { await model.deleteOverlayAsset(asset) }
+                            }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(Palette.coral)
+                            .disabled(model.deletingAssetIDs.contains(asset.id))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct DownloadableAssetRow: View {
+    let model: AppModel
+    let asset: OverlayAssetCatalogEntry
+
+    private var isInstalled: Bool {
+        model.installedOverlayAssets.contains { $0.reference == OverlayAssetReference(source: .downloaded, value: asset.id) }
+    }
+
+    private var isDownloading: Bool {
+        model.downloadingAssetIDs.contains(asset.id)
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: asset.systemImage ?? "square.and.arrow.down")
+                        .foregroundStyle(Palette.amber)
+                    Text(asset.title)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(Palette.ink)
+                }
+
+                if let recommendedEvent = asset.recommendedEvent {
+                    Text(model.copy.title(for: recommendedEvent))
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(Palette.ink.opacity(0.55))
+                }
+            }
+
+            Spacer()
+
+            if isInstalled {
+                Text(model.copy.installedBadge)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(Palette.ink.opacity(0.55))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(0.85), in: Capsule())
+            } else {
+                Button(isDownloading ? "..." : model.copy.download) {
+                    Task { await model.downloadOverlayAsset(asset) }
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundStyle(model.canManageDownloadableAssets ? Palette.amber : Palette.ink.opacity(0.4))
+                .disabled(model.canManageDownloadableAssets == false || isDownloading)
+            }
+        }
+        .padding(12)
+        .background(Color.white.opacity(0.62), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Palette.ink.opacity(0.06), lineWidth: 1)
+        )
+    }
+}
+
+private struct InlineMessage: View {
+    let text: String
+    let tint: Color
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 12, weight: .medium, design: .rounded))
+            .foregroundStyle(tint)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
 private struct ChargeTargetRow: View {
     let model: AppModel
 
@@ -229,40 +466,19 @@ private struct ChargeTargetRow: View {
                     .monospacedDigit()
             }
 
-            Toggle(isOn: Binding(
-                get: { model.chargeTargetFollowsSystem },
-                set: { model.updateChargeTargetFollowsSystem($0) }
-            )) {
-                Text(systemToggleLabel)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(Palette.ink.opacity(0.75))
-            }
-            .toggleStyle(.switch)
+            Slider(
+                value: Binding(
+                    get: { Double(model.chargeTargetLevel) },
+                    set: { model.updateChargeTargetLevel(Int($0)) }
+                ),
+                in: Double(ChargeTarget.minimum)...Double(ChargeTarget.maximum),
+                step: Double(ChargeTarget.step)
+            )
             .tint(Palette.amber)
 
-            if model.chargeTargetFollowsSystem == false {
-                Slider(
-                    value: Binding(
-                        get: { Double(model.chargeTargetLevel) },
-                        set: { model.updateChargeTargetLevel(Int($0)) }
-                    ),
-                    in: Double(ChargeTarget.minimum)...Double(ChargeTarget.maximum),
-                    step: Double(ChargeTarget.step)
-                )
-                .tint(Palette.amber)
-
-                Text(model.copy.catWillCheer(at: model.chargeTargetLevel))
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(Palette.ink.opacity(0.55))
-            } else if model.systemChargeLimit == nil {
-                Text(model.copy.couldntReadSystemLimit)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(Palette.ink.opacity(0.55))
-            }
+            Text(model.copy.catWillCheer(at: model.chargeTargetLevel))
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundStyle(Palette.ink.opacity(0.55))
         }
-    }
-
-    private var systemToggleLabel: String {
-        model.copy.followMacOSSetting(limit: model.systemChargeLimit)
     }
 }

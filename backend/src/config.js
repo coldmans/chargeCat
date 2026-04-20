@@ -52,6 +52,8 @@ export function loadConfig() {
     port: envNumber('PORT', 8787),
     publicBaseUrl,
     databasePath: resolvePath(envString('DATABASE_PATH', './data/chargecat.sqlite')),
+    assetCatalogPath: resolvePath(envString('ASSET_CATALOG_PATH', './assets/catalog.json')),
+    assetFilesPath: resolvePath(envString('ASSET_FILES_PATH', './assets/files')),
     lemonApiKey: envString('LEMON_API_KEY'),
     lemonWebhookSecret: envString('LEMON_WEBHOOK_SECRET'),
     lemonStoreId: envNumber('LEMON_STORE_ID', 0),

@@ -42,6 +42,7 @@ struct AppCopy {
 
     var settings: String { isKorean ? "설정" : "Settings" }
     var animation: String { isKorean ? "애니메이션" : "Animation" }
+    var animationByEvent: String { isKorean ? "이벤트별 애니메이션" : "Animations by Event" }
     var screenCorner: String { isKorean ? "화면 코너" : "Screen Corner" }
     var testCharge: String { isKorean ? "충전 테스트" : "Test Charge" }
     var testFull: String { isKorean ? "완충 테스트" : "Test Full" }
@@ -98,6 +99,62 @@ struct AppCopy {
         isKorean
             ? "기본 기능은 계속 무료예요. Pro는 프리미엄 기능과 앞으로의 추가 팩을 위한 자리예요."
             : "Free features stay free. Pro is ready for premium add-ons and future packs."
+    }
+
+    var proAnimationCustomizationLocked: String {
+        isKorean
+            ? "기본값은 충전 시작에 문 고양이, 완충에 배부른 고양이예요. Pro에서만 이벤트별 애니메이션 변경과 추가 팩 다운로드가 열립니다."
+            : "The defaults are Door Cat for charge start and Full Belly for full charge. Event-specific animation changes and downloadable packs unlock with Pro."
+    }
+
+    var downloadableAnimations: String {
+        isKorean ? "추가 애니메이션 팩" : "Extra Animation Packs"
+    }
+
+    var downloadableAssetsNotConfigured: String {
+        isKorean ? "이 빌드에는 다운로드 가능한 애니메이션 백엔드가 아직 연결되지 않았어요." : "This build does not have the downloadable animation backend configured yet."
+    }
+
+    var noDownloadableAnimationsYet: String {
+        isKorean ? "아직 내려받을 수 있는 추가 애니메이션이 없어요." : "No extra animations are available to download yet."
+    }
+
+    var installedBadge: String { isKorean ? "설치됨" : "Installed" }
+    var bundledBadge: String { isKorean ? "기본 포함" : "Included" }
+    var download: String { isKorean ? "다운로드" : "Download" }
+    var delete: String { isKorean ? "삭제" : "Delete" }
+    var refreshCatalog: String { isKorean ? "목록 새로고침" : "Refresh Catalog" }
+
+    var loadingAnimationCatalog: String {
+        isKorean ? "애니메이션 목록을 불러오는 중..." : "Loading animation catalog..."
+    }
+
+    func downloadingAnimation(name: String) -> String {
+        isKorean ? "\(name) 다운로드 중..." : "Downloading \(name)..."
+    }
+
+    func downloadedAnimation(name: String) -> String {
+        isKorean ? "\(name) 애니메이션을 추가했어요." : "Added the \(name) animation."
+    }
+
+    func removingAnimation(name: String) -> String {
+        isKorean ? "\(name) 삭제 중..." : "Removing \(name)..."
+    }
+
+    func removedAnimation(name: String) -> String {
+        isKorean ? "\(name) 애니메이션을 삭제했어요." : "Removed the \(name) animation."
+    }
+
+    var couldNotLoadAnimationCatalog: String {
+        isKorean ? "추가 애니메이션 목록을 불러오지 못했어요." : "Couldn't load the extra animation catalog."
+    }
+
+    var couldNotDownloadAnimation: String {
+        isKorean ? "애니메이션을 다운로드하지 못했어요." : "Couldn't download this animation."
+    }
+
+    var downloadedAnimationMissing: String {
+        isKorean ? "다운로드한 애니메이션 파일을 찾지 못했어요." : "A downloaded animation file is missing."
     }
 
     var readyForNextChargingRitual: String {
@@ -217,12 +274,12 @@ struct AppCopy {
         source: String,
         level: Int,
         side: ScreenSide,
-        asset: OverlayAnimationAsset
+        assetTitle: String
     ) -> String {
         if isKorean {
-            return "\(localizedSource(source)) · \(level)% · \(title(for: kind)) · \(title(for: side)) · \(title(for: asset))"
+            return "\(localizedSource(source)) · \(level)% · \(title(for: kind)) · \(title(for: side)) · \(assetTitle)"
         }
-        return "\(title(for: kind)) from \(localizedSource(source)) at \(level)% on the \(title(for: side).lowercased()) side with \(title(for: asset))."
+        return "\(title(for: kind)) from \(localizedSource(source)) at \(level)% on the \(title(for: side).lowercased()) side with \(assetTitle)."
     }
 
     func localizedSource(_ source: String) -> String {
@@ -338,19 +395,8 @@ struct AppCopy {
         }
     }
 
-    func followMacOSSetting(limit: Int?) -> String {
-        if let limit {
-            return isKorean ? "macOS 설정 따라가기 (\(limit)%)" : "Follow macOS setting (\(limit)%)"
-        }
-        return isKorean ? "macOS 설정 따라가기" : "Follow macOS setting"
-    }
-
     func catWillCheer(at level: Int) -> String {
         isKorean ? "고양이가 \(level)%에서 축하해요." : "Cat will cheer at \(level)%."
-    }
-
-    var couldntReadSystemLimit: String {
-        isKorean ? "시스템 제한을 읽지 못해 100%로 표시합니다." : "Couldn't read the system limit — falling back to 100%."
     }
 
     var proCheckoutNotConfigured: String {
