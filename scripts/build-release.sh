@@ -124,6 +124,13 @@ hdiutil create \
 SHA=$(shasum -a 256 "${DMG_PATH}" | awk '{print $1}')
 SIZE=$(du -h "${DMG_PATH}" | awk '{print $1}')
 
+# 9. Update Homebrew cask metadata to match the freshly built DMG
+CASK_PATH="${PROJECT_DIR}/Casks/charge-cat.rb"
+if [[ -f "${CASK_PATH}" ]]; then
+  perl -0pi -e "s/version \".*?\"/version \"${VERSION}\"/; s/sha256 \".*?\"/sha256 \"${SHA}\"/" "${CASK_PATH}"
+  echo "    Updated Homebrew cask: ${CASK_PATH}"
+fi
+
 echo ""
 echo "============================================"
 echo "  Build complete!"
@@ -135,7 +142,9 @@ echo "  Arch:    $(uname -m)"
 echo ""
 echo "  Next steps:"
 echo "  1. gh release create v${VERSION} '${DMG_PATH}' --title 'v${VERSION}' --notes 'Charge Cat v${VERSION}'"
-echo "  2. Update Casks/charge-cat.rb with sha256 \"${SHA}\""
+echo "  2. Homebrew install after publishing:"
+echo "     brew tap coldmans/chargeCat https://github.com/coldmans/chargeCat"
+echo "     brew install --cask charge-cat"
 echo ""
 
 # Cleanup

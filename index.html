@@ -703,7 +703,7 @@
       <div class="feature">
         <div class="feature-icon">&#x1F50B;</div>
         <h3 data-i18n="features.f2.title">완충 기준 커스터마이징</h3>
-        <p data-i18n="features.f2.body">macOS 충전 상한을 자동으로 따라가거나, 80·90% 같이 내가 원하는 지점을 "완충"으로 정할 수 있어요.</p>
+        <p data-i18n="features.f2.body">80·90% 같이 내가 원하는 지점을 직접 "완충"으로 정할 수 있어요. 시스템 추정값에 덜 기대고, 내가 원하는 기준으로 정확하게 맞춥니다.</p>
       </div>
       <div class="feature">
         <div class="feature-icon">&#x1F3B5;</div>
@@ -727,8 +727,8 @@
         <div class="install-method">
           <div class="install-method-label" data-i18n="install.brew">Homebrew (권장)</div>
           <div class="install-cmd">
-            <code>brew install --cask charge-cat</code>
-            <button class="copy-btn" onclick="copyCmd(this, 'brew install --cask charge-cat')" data-i18n="install.copy">복사</button>
+            <code>brew tap coldmans/chargeCat https://github.com/coldmans/chargeCat && brew install --cask charge-cat</code>
+            <button class="copy-btn" onclick="copyCmd(this, 'brew tap coldmans/chargeCat https://github.com/coldmans/chargeCat && brew install --cask charge-cat')" data-i18n="install.copy">복사</button>
           </div>
         </div>
         <div class="install-or" data-i18n="install.or">또는</div>
@@ -739,7 +739,7 @@
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
               <span data-i18n="install.dmg">.dmg 다운로드</span>
             </a>
-            <p style="margin-top:12px;font-size:12px;opacity:0.35" data-i18n="install.meta">v1.0.0 · Universal Binary · 약 4 MB</p>
+            <p style="margin-top:12px;font-size:12px;opacity:0.35" data-i18n="install.meta">v1.0.1 · Universal Binary · 약 93 MB</p>
           </div>
         </div>
       </div>
@@ -802,7 +802,7 @@
         'features.f1.title': '화면 구석 오버레이',
         'features.f1.body': '왼쪽 아래 또는 오른쪽 아래에 나타나요. 작업을 가리지 않고 스스로 사라집니다.',
         'features.f2.title': '완충 기준 커스터마이징',
-        'features.f2.body': 'macOS 충전 상한을 자동으로 따라가거나, 80·90% 같이 내가 원하는 지점을 "완충"으로 정할 수 있어요.',
+        'features.f2.body': '80·90% 같이 내가 원하는 지점을 직접 "완충"으로 정할 수 있어요. 시스템 추정값에 덜 기대고, 내가 원하는 기준으로 정확하게 맞춥니다.',
         'features.f3.title': '조용한 메뉴바 상주',
         'features.f3.body': '메뉴바에만 살아요. Dock 아이콘 없이 배터리 상태와 위치 설정을 바로 조작할 수 있어요.',
         'features.f4.title': '가벼움 그 자체',
@@ -815,7 +815,7 @@
         'install.or': '또는',
         'install.direct': '직접 다운로드',
         'install.dmg': '.dmg 다운로드',
-        'install.meta': 'v1.0.0 · Universal Binary · 약 4 MB',
+        'install.meta': 'v1.0.1 · Universal Binary · 약 93 MB',
         'pro.eyebrow': 'Charge Cat Pro',
         'pro.heading': '핵심 기능은 계속 무료. 프리미엄은 따로.',
         'pro.body': '국내 결제는 Toss로 빠르게, 글로벌 체크아웃은 Lemon으로 이어갈 수 있어요. 앱 안에서 시작한 구매는 같은 Mac에서 Pro가 자동으로 활성화됩니다.',
@@ -856,7 +856,7 @@
         'features.f1.title': 'Screen corner overlay',
         'features.f1.body': 'Shows up in the bottom-left or bottom-right. Doesn\'t block your work. Disappears on its own.',
         'features.f2.title': 'Custom full-charge target',
-        'features.f2.body': 'Follow the macOS charge limit automatically — or pick your own threshold like 80% or 90% as "fully charged".',
+        'features.f2.body': 'Pick your own full-charge threshold like 80% or 90%. Charge Cat now uses your chosen target directly instead of relying on a guessed macOS limit.',
         'features.f3.title': 'Quiet menu bar resident',
         'features.f3.body': 'Lives in the menu bar only. No dock icon. Battery state and corner position right where you need them.',
         'features.f4.title': 'Zero overhead',
@@ -869,7 +869,7 @@
         'install.or': 'or',
         'install.direct': 'Direct download',
         'install.dmg': 'Download .dmg',
-        'install.meta': 'v1.0.0 · Universal Binary · ~4 MB',
+        'install.meta': 'v1.0.1 · Universal Binary · ~93 MB',
         'pro.eyebrow': 'Charge Cat Pro',
         'pro.heading': 'Keep the core app free. Unlock premium extras separately.',
         'pro.body': 'Use Toss for the smoothest Korean checkout, or keep Lemon available for global checkout. Purchases started in the app can still unlock Pro automatically on the same Mac.',
