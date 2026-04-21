@@ -4,8 +4,8 @@ function isoNow() {
   return new Date().toISOString();
 }
 
-function normalizePoolConfig({ host, port, user, password, database, connectionLimit } = {}) {
-  return {
+function normalizePoolConfig({ host, port, user, password, database, connectionLimit, ssl } = {}) {
+  const base = {
     host,
     port: port == null ? 3306 : Number(port),
     user,
@@ -13,6 +13,12 @@ function normalizePoolConfig({ host, port, user, password, database, connectionL
     database,
     connectionLimit: connectionLimit == null ? 10 : Number(connectionLimit)
   };
+
+  if (ssl && typeof ssl === 'object') {
+    return { ...base, ssl };
+  }
+
+  return base;
 }
 
 let sharedPool = null;
@@ -20,7 +26,14 @@ let sharedPoolKey = null;
 
 function getPool(config) {
   const poolConfig = normalizePoolConfig(config);
-  const poolKey = JSON.stringify(poolConfig);
+  // ssl 필드는 Buffer/CA 원문이 섞여 있어 JSON.stringify 결과가 불안정하므로
+  // 풀 동일성 판정은 접속 대상을 식별하는 기본 필드만으로 수행한다.
+  const poolKey = JSON.stringify({
+    host: poolConfig.host,
+    port: poolConfig.port,
+    user: poolConfig.user,
+    database: poolConfig.database
+  });
 
   if (sharedPool) {
     if (sharedPoolKey !== poolKey) {

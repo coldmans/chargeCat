@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -5,6 +6,14 @@ const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 
 function envString(name, fallback = '') {
   return process.env[name]?.trim() || fallback;
+}
+
+function envBool(name, fallback = false) {
+  const raw = process.env[name]?.trim().toLowerCase();
+  if (!raw) {
+    return fallback;
+  }
+  return raw === 'true' || raw === '1' || raw === 'yes';
 }
 
 function envNumber(name, fallback = 0) {
@@ -42,6 +51,28 @@ function resolvePath(input) {
   return path.resolve(backendRoot, input);
 }
 
+function loadDatabaseSsl() {
+  const sslEnabled = envBool('MYSQL_SSL', false);
+  const caPathRaw = envString('MYSQL_SSL_CA_PATH', '');
+  const rejectUnauthorized = envBool('MYSQL_SSL_REJECT_UNAUTHORIZED', true);
+
+  if (!sslEnabled && !caPathRaw) {
+    return null;
+  }
+
+  const ssl = { rejectUnauthorized };
+  if (caPathRaw) {
+    const caPath = resolvePath(caPathRaw);
+    try {
+      ssl.ca = fs.readFileSync(caPath);
+    } catch (error) {
+      throw new Error(`MYSQL_SSL_CA_PATH 파일을 읽을 수 없습니다: ${caPath} (${error.message})`);
+    }
+  }
+
+  return ssl;
+}
+
 export function loadConfig() {
   const publicBaseUrl = envUrl('PUBLIC_BASE_URL');
   const appCustomScheme = envString('APP_CUSTOM_SCHEME', 'chargecat').toLowerCase();
@@ -57,7 +88,8 @@ export function loadConfig() {
       user: envString('MYSQL_USER', 'chargecat_app'),
       password: envString('MYSQL_PASSWORD', ''),
       database: envString('MYSQL_DATABASE', 'chargecat'),
-      connectionLimit: envNumber('MYSQL_CONNECTION_LIMIT', 10)
+      connectionLimit: envNumber('MYSQL_CONNECTION_LIMIT', 10),
+      ssl: loadDatabaseSsl()
     },
     assetCatalogPath: resolvePath(envString('ASSET_CATALOG_PATH', './assets/catalog.json')),
     assetFilesPath: resolvePath(envString('ASSET_FILES_PATH', './assets/files')),
