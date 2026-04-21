@@ -51,7 +51,14 @@ export function loadConfig() {
     backendRoot,
     port: envNumber('PORT', 8787),
     publicBaseUrl,
-    databasePath: resolvePath(envString('DATABASE_PATH', './data/chargecat.sqlite')),
+    database: {
+      host: envString('MYSQL_HOST', '127.0.0.1'),
+      port: envNumber('MYSQL_PORT', 3306),
+      user: envString('MYSQL_USER', 'chargecat_app'),
+      password: envString('MYSQL_PASSWORD', ''),
+      database: envString('MYSQL_DATABASE', 'chargecat'),
+      connectionLimit: envNumber('MYSQL_CONNECTION_LIMIT', 10)
+    },
     assetCatalogPath: resolvePath(envString('ASSET_CATALOG_PATH', './assets/catalog.json')),
     assetFilesPath: resolvePath(envString('ASSET_FILES_PATH', './assets/files')),
     lemonApiKey: envString('LEMON_API_KEY'),

@@ -25,7 +25,7 @@ import {
 } from './validators.js';
 
 const config = loadConfig();
-const database = new ChargeCatDatabase(config.databasePath);
+const database = new ChargeCatDatabase(config.database);
 const lemonClient = new LemonClient(config);
 const tossClient = new TossClient(config);
 
@@ -162,7 +162,7 @@ function findAssetById(assetId) {
 
 async function authorizeAssetDownload({ licenseKey, instanceId }) {
   if (licenseKey.startsWith('ccp_')) {
-    const license = database.getLicense(licenseKey);
+    const license = await database.getLicense(licenseKey);
     if (!license || license.provider !== 'chargeCat') {
       return { ok: false, status: 403, error: 'This Pro license could not be found.' };
     }
@@ -171,12 +171,12 @@ async function authorizeAssetDownload({ licenseKey, instanceId }) {
       return { ok: false, status: 403, error: 'This Pro license is no longer active.' };
     }
 
-    const instance = database.getLicenseInstance({ licenseKey, instanceId });
+    const instance = await database.getLicenseInstance({ licenseKey, instanceId });
     if (!instance || instance.status !== 'active') {
       return { ok: false, status: 403, error: 'This Mac is not currently activated for Pro downloads.' };
     }
 
-    database.touchLicenseInstance(instanceId);
+    await database.touchLicenseInstance(instanceId);
     return { ok: true };
   }
 
@@ -316,12 +316,12 @@ function serializeLicenseInstance(instance) {
   };
 }
 
-function completeChargeCatSession({ session, payment }) {
+async function completeChargeCatSession({ session, payment }) {
   const existingLicenseKey = session.licenseKey;
   const licenseKey = existingLicenseKey || createChargeCatLicenseKey();
 
   if (!existingLicenseKey) {
-    database.createLicense({
+    await database.createLicense({
       licenseKey,
       provider: 'chargeCat',
       customerEmail: payment.customerEmail ?? session.customerEmail,
@@ -375,7 +375,7 @@ async function createTossSession({ sessionId, customerEmail, installationId, sou
   const orderId = createOrderId(sessionId);
   const checkoutUrl = publicUrl(`/checkout/toss/${sessionId}`);
 
-  database.createCheckoutSession({
+  await database.createCheckoutSession({
     id: sessionId,
     provider: 'toss',
     installationId,
@@ -399,7 +399,7 @@ async function createTossSession({ sessionId, customerEmail, installationId, sou
 async function createLemonSession({ sessionId, customerEmail, installationId, source, appVersion }) {
   const expiresAt = addMinutes(now(), 30).toISOString();
 
-  database.createCheckoutSession({
+  await database.createCheckoutSession({
     id: sessionId,
     provider: 'lemon',
     installationId,
@@ -603,7 +603,7 @@ app.post('/api/checkout-sessions', express.json(), async (request, response) => 
 
     response.status(201).json(normalizeSessionForClient(session));
   } catch (error) {
-    database.markCheckoutFailed({
+    await database.markCheckoutFailed({
       id: sessionId,
       errorMessage: error instanceof Error ? error.message : 'Unknown checkout error.'
     });
@@ -614,7 +614,7 @@ app.post('/api/checkout-sessions', express.json(), async (request, response) => 
   }
 });
 
-app.get('/api/checkout-sessions/:sessionId', (request, response) => {
+app.get('/api/checkout-sessions/:sessionId', async (request, response) => {
   const parsed = sessionLookupSchema.safeParse({
     sessionId: request.params.sessionId,
     installationId: request.query.installationId
@@ -627,7 +627,7 @@ app.get('/api/checkout-sessions/:sessionId', (request, response) => {
     return;
   }
 
-  let session = database.getCheckoutSession(parsed.data.sessionId);
+  let session = await database.getCheckoutSession(parsed.data.sessionId);
   if (!session) {
     response.status(404).json({
       error: 'Checkout session not found.'
@@ -641,7 +641,7 @@ app.get('/api/checkout-sessions/:sessionId', (request, response) => {
   }
 
   if (session.status === 'pending' && new Date(session.expiresAt).getTime() < Date.now()) {
-    session = database.markCheckoutExpired(session.id);
+    session = await database.markCheckoutExpired(session.id);
   }
 
   const payload = normalizeSessionForClient(session);
@@ -656,7 +656,7 @@ app.get('/api/checkout-sessions/:sessionId', (request, response) => {
   response.json(payload);
 });
 
-app.post('/api/checkout-sessions/:sessionId/claim', express.json(), (request, response) => {
+app.post('/api/checkout-sessions/:sessionId/claim', express.json(), async (request, response) => {
   const parsed = claimCheckoutSessionSchema.safeParse(request.body);
   if (!parsed.success) {
     response.status(400).json({
@@ -665,7 +665,7 @@ app.post('/api/checkout-sessions/:sessionId/claim', express.json(), (request, re
     return;
   }
 
-  const session = database.getCheckoutSession(request.params.sessionId);
+  const session = await database.getCheckoutSession(request.params.sessionId);
   if (!session) {
     response.status(404).json({
       error: 'Checkout session not found.'
@@ -678,7 +678,7 @@ app.post('/api/checkout-sessions/:sessionId/claim', express.json(), (request, re
     return;
   }
 
-  const claimed = database.claimCheckoutSession({
+  const claimed = await database.claimCheckoutSession({
     id: session.id,
     installationId: parsed.data.installationId
   });
@@ -686,7 +686,7 @@ app.post('/api/checkout-sessions/:sessionId/claim', express.json(), (request, re
   response.json(normalizeSessionForClient(claimed));
 });
 
-app.post('/api/licenses/activate', express.json(), (request, response) => {
+app.post('/api/licenses/activate', express.json(), async (request, response) => {
   const parsed = activateLicenseSchema.safeParse(request.body);
   if (!parsed.success) {
     response.json({
@@ -700,7 +700,7 @@ app.post('/api/licenses/activate', express.json(), (request, response) => {
   }
 
   const payload = parsed.data;
-  const license = database.getLicense(payload.licenseKey);
+  const license = await database.getLicense(payload.licenseKey);
   if (!license || license.provider !== 'chargeCat') {
     response.json({
       activated: false,
@@ -723,7 +723,7 @@ app.post('/api/licenses/activate', express.json(), (request, response) => {
     return;
   }
 
-  const existingInstance = database.getActiveLicenseInstanceForInstallation({
+  const existingInstance = await database.getActiveLicenseInstanceForInstallation({
     licenseKey: payload.licenseKey,
     installationId: payload.installationId
   });
@@ -739,7 +739,7 @@ app.post('/api/licenses/activate', express.json(), (request, response) => {
     return;
   }
 
-  const activation = database.createOrReuseLicenseInstance({
+  const activation = await database.createOrReuseLicenseInstance({
     id: existingInstance?.id ?? createSessionId(),
     licenseKey: payload.licenseKey,
     installationId: payload.installationId,
@@ -755,7 +755,7 @@ app.post('/api/licenses/activate', express.json(), (request, response) => {
   });
 });
 
-app.post('/api/licenses/validate', express.json(), (request, response) => {
+app.post('/api/licenses/validate', express.json(), async (request, response) => {
   const parsed = validateLicenseSchema.safeParse(request.body);
   if (!parsed.success) {
     response.json({
@@ -769,7 +769,7 @@ app.post('/api/licenses/validate', express.json(), (request, response) => {
   }
 
   const payload = parsed.data;
-  const license = database.getLicense(payload.licenseKey);
+  const license = await database.getLicense(payload.licenseKey);
   if (!license || license.provider !== 'chargeCat') {
     response.json({
       valid: false,
@@ -803,7 +803,7 @@ app.post('/api/licenses/validate', express.json(), (request, response) => {
     return;
   }
 
-  const instance = database.getLicenseInstance({
+  const instance = await database.getLicenseInstance({
     licenseKey: payload.licenseKey,
     instanceId: payload.instanceId
   });
@@ -819,9 +819,9 @@ app.post('/api/licenses/validate', express.json(), (request, response) => {
     return;
   }
 
-  database.touchLicenseInstance(instance.id);
-  const freshLicense = database.getLicense(payload.licenseKey);
-  const freshInstance = database.getLicenseInstance({
+  await database.touchLicenseInstance(instance.id);
+  const freshLicense = await database.getLicense(payload.licenseKey);
+  const freshInstance = await database.getLicenseInstance({
     licenseKey: payload.licenseKey,
     instanceId: payload.instanceId
   });
@@ -835,7 +835,7 @@ app.post('/api/licenses/validate', express.json(), (request, response) => {
   });
 });
 
-app.post('/api/licenses/deactivate', express.json(), (request, response) => {
+app.post('/api/licenses/deactivate', express.json(), async (request, response) => {
   const parsed = deactivateLicenseSchema.safeParse(request.body);
   if (!parsed.success) {
     response.json({
@@ -846,7 +846,7 @@ app.post('/api/licenses/deactivate', express.json(), (request, response) => {
   }
 
   const payload = parsed.data;
-  const license = database.getLicense(payload.licenseKey);
+  const license = await database.getLicense(payload.licenseKey);
   if (!license || license.provider !== 'chargeCat') {
     response.json({
       deactivated: false,
@@ -855,7 +855,7 @@ app.post('/api/licenses/deactivate', express.json(), (request, response) => {
     return;
   }
 
-  const instance = database.getLicenseInstance({
+  const instance = await database.getLicenseInstance({
     licenseKey: payload.licenseKey,
     instanceId: payload.instanceId
   });
@@ -868,7 +868,7 @@ app.post('/api/licenses/deactivate', express.json(), (request, response) => {
     return;
   }
 
-  database.deactivateLicenseInstance({
+  await database.deactivateLicenseInstance({
     licenseKey: payload.licenseKey,
     instanceId: payload.instanceId
   });
@@ -879,7 +879,7 @@ app.post('/api/licenses/deactivate', express.json(), (request, response) => {
   });
 });
 
-app.post('/webhooks/lemon', express.raw({ type: 'application/json' }), (request, response) => {
+app.post('/webhooks/lemon', express.raw({ type: 'application/json' }), async (request, response) => {
   const rawBody = Buffer.isBuffer(request.body) ? request.body.toString('utf8') : '';
   const signature = request.get('X-Signature') || '';
   if (verifyWebhookSignature(rawBody, signature) === false) {
@@ -900,7 +900,7 @@ app.post('/webhooks/lemon', express.raw({ type: 'application/json' }), (request,
   }
 
   const eventName = request.get('X-Event-Name') || payload?.meta?.event_name || 'unknown';
-  const webhookLogId = database.insertWebhookEvent({
+  const webhookLogId = await database.insertWebhookEvent({
     eventName,
     resourceType: payload?.data?.type,
     resourceId: payload?.data?.id,
@@ -913,7 +913,7 @@ app.post('/webhooks/lemon', express.raw({ type: 'application/json' }), (request,
 
     if (eventName === 'order_created' && sessionId) {
       const attributes = payload?.data?.attributes ?? {};
-      database.recordOrderCreated({
+      await database.recordOrderCreated({
         id: sessionId,
         orderId: attributes.id ? String(attributes.id) : String(payload?.data?.id ?? ''),
         orderIdentifier: attributes.identifier ?? null,
@@ -923,7 +923,7 @@ app.post('/webhooks/lemon', express.raw({ type: 'application/json' }), (request,
 
     if (eventName === 'license_key_created' && sessionId) {
       const attributes = payload?.data?.attributes ?? {};
-      const session = database.getCheckoutSession(sessionId);
+      const session = await database.getCheckoutSession(sessionId);
       if (!session) {
         throw new Error(`Unknown checkout session: ${sessionId}`);
       }
@@ -941,7 +941,7 @@ app.post('/webhooks/lemon', express.raw({ type: 'application/json' }), (request,
         throw new Error('License webhook did not include a license key.');
       }
 
-      database.completeCheckoutSession({
+      await database.completeCheckoutSession({
         id: sessionId,
         provider: 'lemon',
         customerEmail: attributes.user_email ?? session.customerEmail,
@@ -953,7 +953,7 @@ app.post('/webhooks/lemon', express.raw({ type: 'application/json' }), (request,
       });
     }
 
-    database.finalizeWebhookEvent({
+    await database.finalizeWebhookEvent({
       id: webhookLogId,
       status: 'processed',
       errorMessage: null
@@ -963,7 +963,7 @@ app.post('/webhooks/lemon', express.raw({ type: 'application/json' }), (request,
       ok: true
     });
   } catch (error) {
-    database.finalizeWebhookEvent({
+    await database.finalizeWebhookEvent({
       id: webhookLogId,
       status: 'error',
       errorMessage: error instanceof Error ? error.message : 'Unknown webhook error.'
@@ -1009,20 +1009,20 @@ app.get('/buy/pro', async (request, response) => {
   }
 });
 
-app.get('/checkout/toss/:sessionId', (request, response) => {
+app.get('/checkout/toss/:sessionId', async (request, response) => {
   if (config.isTossConfigured === false) {
     response.status(503).send('Toss Payments checkout is not configured yet.');
     return;
   }
 
-  let session = database.getCheckoutSession(request.params.sessionId);
+  let session = await database.getCheckoutSession(request.params.sessionId);
   if (!session || session.provider !== 'toss') {
     response.status(404).send('Checkout session not found.');
     return;
   }
 
   if (session.status === 'pending' && new Date(session.expiresAt).getTime() < Date.now()) {
-    session = database.markCheckoutExpired(session.id);
+    session = await database.markCheckoutExpired(session.id);
   }
 
   if (session.status === 'ready' || session.status === 'claimed') {
@@ -1062,7 +1062,7 @@ app.get('/checkout/toss/success', async (request, response) => {
   const orderId = typeof request.query.orderId === 'string' ? request.query.orderId : '';
   const amount = Number(request.query.amount);
 
-  const session = database.getCheckoutSession(sessionId);
+  const session = await database.getCheckoutSession(sessionId);
   if (!session || session.provider !== 'toss') {
     response.status(404).send('Checkout session not found.');
     return;
@@ -1081,7 +1081,7 @@ app.get('/checkout/toss/success', async (request, response) => {
       amount
     });
 
-    database.updateCheckoutPaymentState({
+    await database.updateCheckoutPaymentState({
       id: session.id,
       paymentKey: payment.paymentKey ?? paymentKey,
       paymentMethod: payment.method ?? null,
@@ -1110,14 +1110,14 @@ app.get('/checkout/toss/success', async (request, response) => {
       return;
     }
 
-    const completedSession = completeChargeCatSession({
+    const completedSession = await completeChargeCatSession({
       session,
       payment
     });
 
     response.type('html').send(renderCompletionForSession(completedSession));
   } catch (error) {
-    database.markCheckoutFailed({
+    await database.markCheckoutFailed({
       id: session.id,
       errorMessage: error instanceof Error ? error.message : 'Could not confirm the Toss payment.'
     });
@@ -1135,14 +1135,14 @@ app.get('/checkout/toss/success', async (request, response) => {
   }
 });
 
-app.get('/checkout/toss/fail', (request, response) => {
+app.get('/checkout/toss/fail', async (request, response) => {
   const sessionId = typeof request.query.session_id === 'string' ? request.query.session_id : '';
   const code = typeof request.query.code === 'string' ? request.query.code : '';
   const message = typeof request.query.message === 'string' ? request.query.message : 'The payment was not completed.';
-  const session = database.getCheckoutSession(sessionId);
+  const session = await database.getCheckoutSession(sessionId);
 
   if (session) {
-    database.markCheckoutFailed({
+    await database.markCheckoutFailed({
       id: session.id,
       errorMessage: code ? `${code}: ${message}` : message
     });

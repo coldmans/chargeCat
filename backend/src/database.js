@@ -1,9 +1,143 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import mysql from 'mysql2/promise';
 
 function isoNow() {
   return new Date().toISOString();
+}
+
+function normalizePoolConfig({ host, port, user, password, database, connectionLimit } = {}) {
+  return {
+    host,
+    port: port == null ? 3306 : Number(port),
+    user,
+    password,
+    database,
+    connectionLimit: connectionLimit == null ? 10 : Number(connectionLimit)
+  };
+}
+
+let sharedPool = null;
+let sharedPoolKey = null;
+
+function getPool(config) {
+  const poolConfig = normalizePoolConfig(config);
+  const poolKey = JSON.stringify(poolConfig);
+
+  if (sharedPool) {
+    if (sharedPoolKey !== poolKey) {
+      throw new Error('ChargeCatDatabase 풀이 다른 MySQL 설정으로 이미 초기화되었습니다.');
+    }
+
+    return sharedPool;
+  }
+
+  sharedPool = mysql.createPool({
+    ...poolConfig,
+    waitForConnections: true,
+    queueLimit: 0,
+    charset: 'utf8mb4',
+    timezone: 'Z',
+    dateStrings: true,
+    enableKeepAlive: true
+  });
+  sharedPoolKey = poolKey;
+  return sharedPool;
+}
+
+async function fetchOne(executor, sql, params = []) {
+  const [rows] = await executor.execute(sql, params);
+  return Array.isArray(rows) ? (rows[0] ?? null) : null;
+}
+
+async function fetchCheckoutSessionRow(executor, id) {
+  return fetchOne(
+    executor,
+    `
+      SELECT *
+      FROM checkout_sessions
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [id]
+  );
+}
+
+async function fetchCheckoutSessionByOrderIdRow(executor, orderId) {
+  return fetchOne(
+    executor,
+    `
+      SELECT *
+      FROM checkout_sessions
+      WHERE order_id = ?
+      LIMIT 1
+    `,
+    [orderId]
+  );
+}
+
+async function fetchLicenseRow(executor, licenseKey) {
+  return fetchOne(
+    executor,
+    `
+      SELECT *
+      FROM licenses
+      WHERE license_key = ?
+      LIMIT 1
+    `,
+    [licenseKey]
+  );
+}
+
+async function fetchActiveLicenseCount(executor, licenseKey) {
+  const row = await fetchOne(
+    executor,
+    `
+      SELECT COUNT(*) AS count
+      FROM license_instances
+      WHERE license_key = ?
+        AND status = 'active'
+    `,
+    [licenseKey]
+  );
+
+  return Number(row?.count ?? 0);
+}
+
+async function fetchLicenseInstanceRow(executor, { licenseKey, instanceId }) {
+  return fetchOne(
+    executor,
+    `
+      SELECT *
+      FROM license_instances
+      WHERE license_key = ?
+        AND id = ?
+      LIMIT 1
+    `,
+    [licenseKey, instanceId]
+  );
+}
+
+async function fetchActiveLicenseInstanceRow(executor, { licenseKey, installationId }) {
+  return fetchOne(
+    executor,
+    `
+      SELECT *
+      FROM license_instances
+      WHERE license_key = ?
+        AND installation_id = ?
+        AND status = 'active'
+      LIMIT 1
+    `,
+    [licenseKey, installationId]
+  );
+}
+
+async function acquireLock(connection, lockName) {
+  const row = await fetchOne(connection, 'SELECT GET_LOCK(?, 5) AS acquired', [lockName]);
+  return Number(row?.acquired ?? 0) === 1;
+}
+
+async function releaseLock(connection, lockName) {
+  await connection.execute('SELECT RELEASE_LOCK(?)', [lockName]);
 }
 
 function mapSession(row) {
@@ -78,117 +212,21 @@ function mapLicenseInstance(row) {
 }
 
 export class ChargeCatDatabase {
-  constructor(databasePath) {
-    fs.mkdirSync(path.dirname(databasePath), { recursive: true });
-    this.db = new DatabaseSync(databasePath);
-    this.db.exec('PRAGMA journal_mode = WAL;');
-    this.db.exec('PRAGMA foreign_keys = ON;');
-    this.createSchema();
+  constructor({ host, port, user, password, database, connectionLimit }) {
+    this.pool = getPool({ host, port, user, password, database, connectionLimit });
   }
 
-  createSchema() {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS checkout_sessions (
-        id TEXT PRIMARY KEY,
-        installation_id TEXT NOT NULL,
-        customer_email TEXT,
-        source TEXT NOT NULL,
-        app_version TEXT,
-        status TEXT NOT NULL,
-        lemon_checkout_id TEXT,
-        lemon_checkout_url TEXT,
-        license_key TEXT,
-        order_id TEXT,
-        order_identifier TEXT,
-        store_id INTEGER,
-        product_id INTEGER,
-        variant_id INTEGER,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        expires_at TEXT NOT NULL,
-        completed_at TEXT,
-        claimed_at TEXT,
-        last_error TEXT
-      ) STRICT;
-
-      CREATE INDEX IF NOT EXISTS idx_checkout_sessions_installation
-      ON checkout_sessions (installation_id);
-
-      CREATE INDEX IF NOT EXISTS idx_checkout_sessions_status
-      ON checkout_sessions (status);
-
-      CREATE TABLE IF NOT EXISTS webhook_events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        event_name TEXT NOT NULL,
-        resource_type TEXT,
-        resource_id TEXT,
-        status TEXT NOT NULL,
-        error_message TEXT,
-        payload_json TEXT NOT NULL,
-        received_at TEXT NOT NULL,
-        processed_at TEXT
-      ) STRICT;
-
-      CREATE TABLE IF NOT EXISTS licenses (
-        license_key TEXT PRIMARY KEY,
-        provider TEXT NOT NULL,
-        customer_email TEXT,
-        status TEXT NOT NULL,
-        activation_limit INTEGER NOT NULL,
-        order_id TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      ) STRICT;
-
-      CREATE TABLE IF NOT EXISTS license_instances (
-        id TEXT PRIMARY KEY,
-        license_key TEXT NOT NULL,
-        installation_id TEXT NOT NULL,
-        instance_name TEXT NOT NULL,
-        status TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        deactivated_at TEXT,
-        last_validated_at TEXT,
-        FOREIGN KEY (license_key) REFERENCES licenses(license_key) ON DELETE CASCADE
-      ) STRICT;
-
-      CREATE INDEX IF NOT EXISTS idx_license_instances_license_key
-      ON license_instances (license_key);
-
-      CREATE INDEX IF NOT EXISTS idx_license_instances_installation
-      ON license_instances (installation_id);
-    `);
-
-    this.ensureCheckoutSessionColumns();
-  }
-
-  ensureCheckoutSessionColumns() {
-    const columns = new Set(
-      this.db.prepare(`PRAGMA table_info(checkout_sessions)`).all().map((column) => column.name)
-    );
-
-    const requiredColumns = {
-      provider: "TEXT NOT NULL DEFAULT 'lemon'",
-      checkout_id: 'TEXT',
-      checkout_url: 'TEXT',
-      order_amount: 'INTEGER',
-      order_currency: "TEXT DEFAULT 'KRW'",
-      payment_key: 'TEXT',
-      payment_method: 'TEXT',
-      payment_status: 'TEXT'
-    };
-
-    for (const [name, definition] of Object.entries(requiredColumns)) {
-      if (!columns.has(name)) {
-        this.db.exec(`ALTER TABLE checkout_sessions ADD COLUMN ${name} ${definition}`);
-      }
-    }
-  }
-
-  createCheckoutSession({ id, provider, installationId, customerEmail, source, appVersion, expiresAt }) {
+  async createCheckoutSession({
+    id,
+    provider,
+    installationId,
+    customerEmail,
+    source,
+    appVersion,
+    expiresAt
+  }) {
     const now = isoNow();
-    this.db.prepare(`
+    await this.pool.execute(`
       INSERT INTO checkout_sessions (
         id,
         provider,
@@ -201,7 +239,7 @@ export class ChargeCatDatabase {
         updated_at,
         expires_at
       ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
-    `).run(
+    `, [
       id,
       provider,
       installationId,
@@ -211,34 +249,22 @@ export class ChargeCatDatabase {
       now,
       now,
       expiresAt
-    );
+    ]);
 
     return this.getCheckoutSession(id);
   }
 
-  getCheckoutSession(id) {
-    const row = this.db.prepare(`
-      SELECT *
-      FROM checkout_sessions
-      WHERE id = ?
-      LIMIT 1
-    `).get(id);
-
+  async getCheckoutSession(id) {
+    const row = await fetchCheckoutSessionRow(this.pool, id);
     return mapSession(row);
   }
 
-  getCheckoutSessionByOrderId(orderId) {
-    const row = this.db.prepare(`
-      SELECT *
-      FROM checkout_sessions
-      WHERE order_id = ?
-      LIMIT 1
-    `).get(orderId);
-
+  async getCheckoutSessionByOrderId(orderId) {
+    const row = await fetchCheckoutSessionByOrderIdRow(this.pool, orderId);
     return mapSession(row);
   }
 
-  attachCheckout({
+  async attachCheckout({
     id,
     provider,
     checkoutId,
@@ -247,7 +273,7 @@ export class ChargeCatDatabase {
     orderAmount,
     orderCurrency
   }) {
-    this.db.prepare(`
+    await this.pool.execute(`
       UPDATE checkout_sessions
       SET provider = ?,
           checkout_id = COALESCE(?, checkout_id),
@@ -259,7 +285,7 @@ export class ChargeCatDatabase {
           order_currency = COALESCE(?, order_currency),
           updated_at = ?
       WHERE id = ?
-    `).run(
+    `, [
       provider,
       checkoutId ?? null,
       checkoutUrl ?? null,
@@ -270,31 +296,31 @@ export class ChargeCatDatabase {
       orderCurrency ?? null,
       isoNow(),
       id
-    );
+    ]);
 
     return this.getCheckoutSession(id);
   }
 
-  recordOrderCreated({ id, orderId, orderIdentifier, customerEmail }) {
-    this.db.prepare(`
+  async recordOrderCreated({ id, orderId, orderIdentifier, customerEmail }) {
+    await this.pool.execute(`
       UPDATE checkout_sessions
       SET order_id = COALESCE(?, order_id),
           order_identifier = COALESCE(?, order_identifier),
           customer_email = COALESCE(?, customer_email),
           updated_at = ?
       WHERE id = ?
-    `).run(
+    `, [
       orderId ?? null,
       orderIdentifier ?? null,
       customerEmail ?? null,
       isoNow(),
       id
-    );
+    ]);
 
     return this.getCheckoutSession(id);
   }
 
-  completeCheckoutSession({
+  async completeCheckoutSession({
     id,
     provider,
     customerEmail,
@@ -309,7 +335,7 @@ export class ChargeCatDatabase {
   }) {
     const now = isoNow();
 
-    this.db.prepare(`
+    await this.pool.execute(`
       UPDATE checkout_sessions
       SET provider = COALESCE(?, provider),
           status = 'ready',
@@ -326,7 +352,7 @@ export class ChargeCatDatabase {
           updated_at = ?,
           last_error = NULL
       WHERE id = ?
-    `).run(
+    `, [
       provider ?? null,
       customerEmail ?? null,
       licenseKey,
@@ -340,13 +366,13 @@ export class ChargeCatDatabase {
       now,
       now,
       id
-    );
+    ]);
 
     return this.getCheckoutSession(id);
   }
 
-  updateCheckoutPaymentState({ id, paymentKey, paymentMethod, paymentStatus, errorMessage }) {
-    this.db.prepare(`
+  async updateCheckoutPaymentState({ id, paymentKey, paymentMethod, paymentStatus, errorMessage }) {
+    await this.pool.execute(`
       UPDATE checkout_sessions
       SET payment_key = COALESCE(?, payment_key),
           payment_method = COALESCE(?, payment_method),
@@ -354,51 +380,51 @@ export class ChargeCatDatabase {
           last_error = ?,
           updated_at = ?
       WHERE id = ?
-    `).run(
+    `, [
       paymentKey ?? null,
       paymentMethod ?? null,
       paymentStatus ?? null,
       errorMessage ?? null,
       isoNow(),
       id
-    );
+    ]);
 
     return this.getCheckoutSession(id);
   }
 
-  markCheckoutFailed({ id, errorMessage }) {
-    this.db.prepare(`
+  async markCheckoutFailed({ id, errorMessage }) {
+    await this.pool.execute(`
       UPDATE checkout_sessions
       SET status = 'failed',
           last_error = ?,
           updated_at = ?
       WHERE id = ?
-    `).run(
+    `, [
       errorMessage,
       isoNow(),
       id
-    );
+    ]);
 
     return this.getCheckoutSession(id);
   }
 
-  markCheckoutExpired(id) {
-    this.db.prepare(`
+  async markCheckoutExpired(id) {
+    await this.pool.execute(`
       UPDATE checkout_sessions
       SET status = 'expired',
           updated_at = ?
       WHERE id = ?
         AND status = 'pending'
-    `).run(
+    `, [
       isoNow(),
       id
-    );
+    ]);
 
     return this.getCheckoutSession(id);
   }
 
-  claimCheckoutSession({ id, installationId }) {
-    const session = this.getCheckoutSession(id);
+  async claimCheckoutSession({ id, installationId }) {
+    const session = await this.getCheckoutSession(id);
     if (!session || session.installationId !== installationId) {
       return null;
     }
@@ -407,25 +433,26 @@ export class ChargeCatDatabase {
       return session;
     }
 
-    this.db.prepare(`
+    const now = isoNow();
+    await this.pool.execute(`
       UPDATE checkout_sessions
       SET status = 'claimed',
           claimed_at = ?,
           updated_at = ?
       WHERE id = ?
-    `).run(
-      isoNow(),
-      isoNow(),
+    `, [
+      now,
+      now,
       id
-    );
+    ]);
 
     return this.getCheckoutSession(id);
   }
 
-  createLicense({ licenseKey, provider, customerEmail, activationLimit, orderId }) {
+  async createLicense({ licenseKey, provider, customerEmail, activationLimit, orderId }) {
     const now = isoNow();
-    this.db.prepare(`
-      INSERT OR IGNORE INTO licenses (
+    await this.pool.execute(`
+      INSERT IGNORE INTO licenses (
         license_key,
         provider,
         customer_email,
@@ -435,7 +462,7 @@ export class ChargeCatDatabase {
         created_at,
         updated_at
       ) VALUES (?, ?, ?, 'active', ?, ?, ?, ?)
-    `).run(
+    `, [
       licenseKey,
       provider,
       customerEmail ?? null,
@@ -443,125 +470,130 @@ export class ChargeCatDatabase {
       orderId ?? null,
       now,
       now
-    );
+    ]);
 
     return this.getLicense(licenseKey);
   }
 
-  getLicense(licenseKey) {
-    const row = this.db.prepare(`
-      SELECT *
-      FROM licenses
-      WHERE license_key = ?
-      LIMIT 1
-    `).get(licenseKey);
-
+  async getLicense(licenseKey) {
+    const row = await fetchLicenseRow(this.pool, licenseKey);
     if (!row) {
       return null;
     }
 
-    return mapLicense(row, this.countActiveLicenseInstances(licenseKey));
+    return mapLicense(row, await fetchActiveLicenseCount(this.pool, licenseKey));
   }
 
-  createOrReuseLicenseInstance({ id, licenseKey, installationId, instanceName }) {
-    const existing = this.db.prepare(`
-      SELECT *
-      FROM license_instances
-      WHERE license_key = ?
-        AND installation_id = ?
-        AND status = 'active'
-      LIMIT 1
-    `).get(licenseKey, installationId);
+  async createOrReuseLicenseInstance({ id, licenseKey, installationId, instanceName }) {
+    const connection = await this.pool.getConnection();
+    const lockName = `chargecat:license-instance:${licenseKey}:${installationId}`;
 
-    if (existing) {
-      return {
-        license: this.getLicense(licenseKey),
-        instance: mapLicenseInstance(existing),
-        reused: true
-      };
-    }
+    try {
+      const lockAcquired = await acquireLock(connection, lockName);
+      if (!lockAcquired) {
+        throw new Error('라이선스 인스턴스 잠금을 획득하지 못했습니다.');
+      }
 
-    const now = isoNow();
-    this.db.prepare(`
-      INSERT INTO license_instances (
+      await connection.beginTransaction();
+
+      const existing = await fetchActiveLicenseInstanceRow(connection, { licenseKey, installationId });
+      if (existing) {
+        const [licenseRow, activationUsage] = await Promise.all([
+          fetchLicenseRow(connection, licenseKey),
+          fetchActiveLicenseCount(connection, licenseKey)
+        ]);
+
+        await connection.commit();
+
+        return {
+          license: mapLicense(licenseRow, activationUsage),
+          instance: mapLicenseInstance(existing),
+          reused: true
+        };
+      }
+
+      const now = isoNow();
+      await connection.execute(`
+        INSERT INTO license_instances (
+          id,
+          license_key,
+          installation_id,
+          instance_name,
+          status,
+          created_at,
+          updated_at,
+          last_validated_at
+        ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?)
+      `, [
         id,
-        license_key,
-        installation_id,
-        instance_name,
-        status,
-        created_at,
-        updated_at,
-        last_validated_at
-      ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?)
-    `).run(
-      id,
-      licenseKey,
-      installationId,
-      instanceName,
-      now,
-      now,
-      now
-    );
+        licenseKey,
+        installationId,
+        instanceName,
+        now,
+        now,
+        now
+      ]);
 
-    return {
-      license: this.getLicense(licenseKey),
-      instance: this.getLicenseInstance({ licenseKey, instanceId: id }),
-      reused: false
-    };
+      const [licenseRow, instanceRow, activationUsage] = await Promise.all([
+        fetchLicenseRow(connection, licenseKey),
+        fetchLicenseInstanceRow(connection, { licenseKey, instanceId: id }),
+        fetchActiveLicenseCount(connection, licenseKey)
+      ]);
+
+      await connection.commit();
+
+      return {
+        license: mapLicense(licenseRow, activationUsage),
+        instance: mapLicenseInstance(instanceRow),
+        reused: false
+      };
+    } catch (error) {
+      try {
+        await connection.rollback();
+      } catch {
+      }
+      throw error;
+    } finally {
+      try {
+        await releaseLock(connection, lockName);
+      } catch {
+      }
+      connection.release();
+    }
   }
 
-  getActiveLicenseInstanceForInstallation({ licenseKey, installationId }) {
-    const row = this.db.prepare(`
-      SELECT *
-      FROM license_instances
-      WHERE license_key = ?
-        AND installation_id = ?
-        AND status = 'active'
-      LIMIT 1
-    `).get(licenseKey, installationId);
-
+  async getActiveLicenseInstanceForInstallation({ licenseKey, installationId }) {
+    const row = await fetchActiveLicenseInstanceRow(this.pool, { licenseKey, installationId });
     return mapLicenseInstance(row);
   }
 
-  countActiveLicenseInstances(licenseKey) {
-    const row = this.db.prepare(`
-      SELECT COUNT(*) AS count
-      FROM license_instances
-      WHERE license_key = ?
-        AND status = 'active'
-    `).get(licenseKey);
-
-    return Number(row?.count ?? 0);
+  async countActiveLicenseInstances(licenseKey) {
+    return fetchActiveLicenseCount(this.pool, licenseKey);
   }
 
-  getLicenseInstance({ licenseKey, instanceId }) {
-    const row = this.db.prepare(`
-      SELECT *
-      FROM license_instances
-      WHERE license_key = ?
-        AND id = ?
-      LIMIT 1
-    `).get(licenseKey, instanceId);
-
+  async getLicenseInstance({ licenseKey, instanceId }) {
+    const row = await fetchLicenseInstanceRow(this.pool, { licenseKey, instanceId });
     return mapLicenseInstance(row);
   }
 
-  touchLicenseInstance(instanceId) {
-    this.db.prepare(`
+  async touchLicenseInstance(instanceId) {
+    const now = isoNow();
+    await this.pool.execute(`
       UPDATE license_instances
       SET last_validated_at = ?,
           updated_at = ?
       WHERE id = ?
         AND status = 'active'
-    `).run(
-      isoNow(),
-      isoNow(),
+    `, [
+      now,
+      now,
       instanceId
-    );
+    ]);
   }
 
-  deactivateLicenseInstance({ licenseKey, instanceId }) {
-    this.db.prepare(`
+  async deactivateLicenseInstance({ licenseKey, instanceId }) {
+    const now = isoNow();
+    await this.pool.execute(`
       UPDATE license_instances
       SET status = 'deactivated',
           deactivated_at = ?,
@@ -569,18 +601,18 @@ export class ChargeCatDatabase {
       WHERE license_key = ?
         AND id = ?
         AND status = 'active'
-    `).run(
-      isoNow(),
-      isoNow(),
+    `, [
+      now,
+      now,
       licenseKey,
       instanceId
-    );
+    ]);
 
     return this.getLicenseInstance({ licenseKey, instanceId });
   }
 
-  insertWebhookEvent({ eventName, resourceType, resourceId, payloadJson }) {
-    const result = this.db.prepare(`
+  async insertWebhookEvent({ eventName, resourceType, resourceId, payloadJson }) {
+    const [result] = await this.pool.execute(`
       INSERT INTO webhook_events (
         event_name,
         resource_type,
@@ -589,29 +621,29 @@ export class ChargeCatDatabase {
         payload_json,
         received_at
       ) VALUES (?, ?, ?, 'received', ?, ?)
-    `).run(
+    `, [
       eventName,
       resourceType ?? null,
       resourceId ?? null,
       payloadJson,
       isoNow()
-    );
+    ]);
 
-    return Number(result.lastInsertRowid);
+    return Number(result.insertId);
   }
 
-  finalizeWebhookEvent({ id, status, errorMessage }) {
-    this.db.prepare(`
+  async finalizeWebhookEvent({ id, status, errorMessage }) {
+    await this.pool.execute(`
       UPDATE webhook_events
       SET status = ?,
           error_message = ?,
           processed_at = ?
       WHERE id = ?
-    `).run(
+    `, [
       status,
       errorMessage ?? null,
       isoNow(),
       id
-    );
+    ]);
   }
 }
