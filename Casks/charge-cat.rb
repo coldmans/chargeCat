@@ -1,6 +1,6 @@
 cask "charge-cat" do
   version "1.0.1"
-  sha256 "dfadb2ff19c302d5d34568f0901c827c1d9a16b7d8e3bc09656b8964b4ecb48b"
+  sha256 "e2d706ae70b51c2aed51b021c20f2dbbe05e3e5c32d8fcc0987cf8530f960678"
 
   url "https://github.com/coldmans/chargeCat/releases/download/v#{version}/ChargeCat-#{version}.dmg",
       verified: "github.com/coldmans/chargeCat/"

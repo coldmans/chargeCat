@@ -103,17 +103,14 @@ struct CornerPreviewView: View {
 
     @ViewBuilder
     private var previewMediaView: some View {
-        if let gifAsset = asset.gifAsset {
+        if let previewImage = asset.previewImage {
+            Image(nsImage: previewImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } else if let gifAsset = asset.gifAsset {
             GIFAnimationView(
                 asset: gifAsset,
                 frameIndex: gifAsset.previewFrame
-            )
-        } else if let videoAsset = asset.videoAsset {
-            VideoAnimationView(
-                asset: videoAsset,
-                loop: true,
-                isMuted: true,
-                playbackID: asset.id
             )
         }
     }
