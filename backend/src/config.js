@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -6,14 +5,6 @@ const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 
 function envString(name, fallback = '') {
   return process.env[name]?.trim() || fallback;
-}
-
-function envBool(name, fallback = false) {
-  const raw = process.env[name]?.trim().toLowerCase();
-  if (!raw) {
-    return fallback;
-  }
-  return raw === 'true' || raw === '1' || raw === 'yes';
 }
 
 function envNumber(name, fallback = 0) {
@@ -51,83 +42,14 @@ function resolvePath(input) {
   return path.resolve(backendRoot, input);
 }
 
-function loadDatabaseSsl() {
-  const sslEnabled = envBool('MYSQL_SSL', false);
-  const caPathRaw = envString('MYSQL_SSL_CA_PATH', '');
-  const rejectUnauthorized = envBool('MYSQL_SSL_REJECT_UNAUTHORIZED', true);
-
-  if (!sslEnabled && !caPathRaw) {
-    return null;
-  }
-
-  const ssl = { rejectUnauthorized };
-  if (caPathRaw) {
-    const caPath = resolvePath(caPathRaw);
-    try {
-      ssl.ca = fs.readFileSync(caPath);
-    } catch (error) {
-      throw new Error(`MYSQL_SSL_CA_PATH 파일을 읽을 수 없습니다: ${caPath} (${error.message})`);
-    }
-  }
-
-  return ssl;
-}
-
 export function loadConfig() {
-  const publicBaseUrl = envUrl('PUBLIC_BASE_URL');
-  const appCustomScheme = envString('APP_CUSTOM_SCHEME', 'chargecat').toLowerCase();
-  const defaultCheckoutProvider = envString('DEFAULT_CHECKOUT_PROVIDER', 'toss').toLowerCase();
-
   return {
     backendRoot,
     port: envNumber('PORT', 8787),
-    publicBaseUrl,
-    database: {
-      host: envString('MYSQL_HOST', '127.0.0.1'),
-      port: envNumber('MYSQL_PORT', 3306),
-      user: envString('MYSQL_USER', 'chargecat_app'),
-      password: envString('MYSQL_PASSWORD', ''),
-      database: envString('MYSQL_DATABASE', 'chargecat'),
-      connectionLimit: envNumber('MYSQL_CONNECTION_LIMIT', 10),
-      ssl: loadDatabaseSsl()
-    },
+    publicBaseUrl: envUrl('PUBLIC_BASE_URL'),
     assetCatalogPath: resolvePath(envString('ASSET_CATALOG_PATH', './assets/catalog.json')),
     assetFilesPath: resolvePath(envString('ASSET_FILES_PATH', './assets/files')),
-    lemonApiKey: envString('LEMON_API_KEY'),
-    lemonWebhookSecret: envString('LEMON_WEBHOOK_SECRET'),
-    lemonStoreId: envNumber('LEMON_STORE_ID', 0),
-    lemonProductId: envNumber('LEMON_PRODUCT_ID', 0),
-    lemonVariantId: envNumber('LEMON_VARIANT_ID', 0),
-    tossWidgetClientKey: envString('TOSS_WIDGET_CLIENT_KEY'),
-    tossSecretKey: envString('TOSS_SECRET_KEY'),
-    tossWidgetVariantKey: envString('TOSS_WIDGET_VARIANT_KEY', 'DEFAULT'),
-    proPriceKrw: envNumber('PRO_PRICE_KRW', 3900),
-    defaultCheckoutProvider: defaultCheckoutProvider === 'lemon' ? 'lemon' : 'toss',
-    appCustomScheme,
-    myOrdersUrl: envUrl('MY_ORDERS_URL', 'https://app.lemonsqueezy.com/my-orders'),
     supportUrl: envUrl('SUPPORT_URL', 'https://github.com/coldmans/chargeCat/issues'),
-    appDownloadUrl: envUrl('APP_DOWNLOAD_URL', 'https://github.com/coldmans/chargeCat/releases'),
-    productName: envString('PRODUCT_NAME', 'Charge Cat Pro'),
-    get isLemonConfigured() {
-      return Boolean(
-        this.publicBaseUrl &&
-        this.lemonApiKey &&
-        this.lemonWebhookSecret &&
-        this.lemonStoreId > 0 &&
-        this.lemonProductId > 0 &&
-        this.lemonVariantId > 0
-      );
-    },
-    get isTossConfigured() {
-      return Boolean(
-        this.publicBaseUrl &&
-        this.tossWidgetClientKey &&
-        this.tossSecretKey &&
-        this.proPriceKrw > 0
-      );
-    },
-    get hasCheckoutProvider() {
-      return this.isTossConfigured || this.isLemonConfigured;
-    }
+    appDownloadUrl: envUrl('APP_DOWNLOAD_URL', 'https://github.com/coldmans/chargeCat/releases')
   };
 }

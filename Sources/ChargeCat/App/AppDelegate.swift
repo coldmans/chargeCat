@@ -1,5 +1,4 @@
 import AppKit
-import Carbon.HIToolbox
 import SwiftUI
 
 @MainActor
@@ -35,12 +34,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
         configureStatusItem()
-        NSAppleEventManager.shared().setEventHandler(
-            self,
-            andSelector: #selector(handleGetURLEvent(_:withReplyEvent:)),
-            forEventClass: AEEventClass(kInternetEventClass),
-            andEventID: AEEventID(kAEGetURL)
-        )
         batteryMonitor.start()
         model.start()
         presentInitialWindow()
@@ -53,6 +46,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if flag == false {
+            openSettings()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        return true
     }
 
     @objc
@@ -80,17 +82,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc
     private func handlePowerStateDidChange() {
         model.refreshPowerMode()
-    }
-
-    @objc
-    private func handleGetURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent _: NSAppleEventDescriptor) {
-        guard let urlString = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
-              let url = URL(string: urlString) else {
-            return
-        }
-
-        model.handleExternalURL(url)
-        openSettings()
     }
 
     private func presentInitialWindow() {

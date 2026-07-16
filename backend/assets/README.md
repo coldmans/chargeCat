@@ -1,11 +1,11 @@
 # Charge Cat Asset Catalog
 
-Add downloadable Pro animation packs here.
+무료로 제공할 추가 애니메이션 팩을 여기에 둡니다.
 
 ## Files
 
-- `catalog.json`: public asset catalog returned by `GET /api/assets/catalog`
-- `files/`: actual downloadable GIF/MOV assets that the backend serves after Pro license verification
+- `catalog.json`: `GET /api/assets/catalog`가 반환하는 공개 asset catalog
+- `files/`: 백엔드가 그대로 내려주는 GIF/MOV 파일
 
 ## Catalog Shape
 
@@ -29,8 +29,8 @@ Add downloadable Pro animation packs here.
 
 ## Notes
 
-- `filename` is resolved against `backend/assets/files/`
-- `downloadURL` can be used instead of `filename` if the asset is hosted elsewhere, and the backend will proxy it after Pro validation
-- `mediaType` must be `gif` or `video`
-- `soundProfile` supports `silent` and `doorCat`
-- `recommendedEvent` supports `chargeStarted` and `fullyCharged`
+- `filename`은 `backend/assets/files/` 기준 상대 경로입니다.
+- `downloadURL`에 절대 URL을 넣으면 앱은 그 URL을 바로 받습니다.
+- `mediaType`은 `gif` 또는 `video`입니다.
+- `soundProfile`은 `silent`와 `doorCat`을 지원합니다.
+- `recommendedEvent`는 `chargeStarted`와 `fullyCharged`를 지원합니다.

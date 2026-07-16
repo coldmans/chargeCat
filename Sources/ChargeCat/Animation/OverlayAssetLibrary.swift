@@ -6,11 +6,6 @@ enum OverlayAssetMediaType: String, Codable {
     case video
 }
 
-struct OverlayAssetDownloadAuthorization {
-    let licenseKey: String
-    let instanceId: String
-}
-
 enum OverlayAssetSoundProfile: String, Codable {
     case silent
     case doorCat
@@ -167,14 +162,14 @@ final class OverlayAssetLibrary {
         let assets: [OverlayAssetCatalogEntry]
     }
 
-    private let configuration: LicensingConfiguration
+    private let configuration: BackendConfiguration
     private let fileManager: FileManager
     private let session: URLSession
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
 
     init(
-        configuration: LicensingConfiguration = .load(),
+        configuration: BackendConfiguration = .load(),
         fileManager: FileManager = .default,
         session: URLSession = .shared
     ) {
@@ -182,6 +177,10 @@ final class OverlayAssetLibrary {
         self.fileManager = fileManager
         self.session = session
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    }
+
+    var hasAssetCatalog: Bool {
+        configuration.assetCatalogURL != nil
     }
 
     func loadDownloadedAssets() -> [DownloadedOverlayAssetRecord] {
@@ -221,15 +220,12 @@ final class OverlayAssetLibrary {
 
     func download(
         _ asset: OverlayAssetCatalogEntry,
-        authorization: OverlayAssetDownloadAuthorization,
         downloadedAssets: [DownloadedOverlayAssetRecord]
     ) async throws -> [DownloadedOverlayAssetRecord] {
         try ensureStorageDirectories()
 
         let (temporaryURL, response): (URL, URLResponse)
-        var request = URLRequest(url: asset.downloadURL)
-        request.setValue(authorization.licenseKey, forHTTPHeaderField: "X-ChargeCat-License-Key")
-        request.setValue(authorization.instanceId, forHTTPHeaderField: "X-ChargeCat-Instance-ID")
+        let request = URLRequest(url: asset.downloadURL)
 
         do {
             (temporaryURL, response) = try await session.download(for: request)

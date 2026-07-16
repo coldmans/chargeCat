@@ -8,12 +8,10 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --watch src/app.js",
     "start": "node --env-file-if-exists=.env src/app.js",
-    "db:migrate": "node --env-file-if-exists=.env scripts/migrate.js",
     "test": "node --test"
   },
   "dependencies": {
     "express": "^5.1.0",
-    "mysql2": "^3.22.2",
     "zod": "^3.25.0"
   }
 }

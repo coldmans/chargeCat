@@ -21,12 +21,6 @@ final class AppModel {
     var currentPowerMode: PowerMode
     var lastEventDescription: String
     var launchAtLoginErrorMessage: String?
-    var licenseKeyDraft: String
-    var customerEmailDraft: String
-    var maskedLicenseKey: String?
-    var licenseInfoMessage: String?
-    var licenseErrorMessage: String?
-    var licenseActivityText: String?
     var assetLibraryInfoMessage: String?
     var assetLibraryErrorMessage: String?
     var assetLibraryActivityText: String?
@@ -34,18 +28,16 @@ final class AppModel {
     var installedOverlayAssets: [InstalledOverlayAsset]
     var downloadingAssetIDs: Set<String>
     var deletingAssetIDs: Set<String>
-    let entitlementStore: EntitlementStore
+    let supportURL: URL
+    let privacyPolicyURL: URL
 
     private var lastTriggerAt: Date?
     private var lastTriggerKind: OverlayEventKind?
     private weak var overlayPresenter: (any OverlayPresenting)?
     private let launchAtLogin: LaunchAtLogin
-    private let licensingService: LemonLicenseService
-    private let checkoutService: ProCheckoutService
     private let assetLibrary: OverlayAssetLibrary
     private var downloadedOverlayAssetRecords: [DownloadedOverlayAssetRecord]
-    private var licenseRevision = 0
-    private var checkoutPollingTask: Task<Void, Never>?
+    private var powerModeRefreshTask: Task<Void, Never>?
     let soundPlayer: SoundPlayer
     var onMenuBarStateChanged: (@MainActor () -> Void)?
 
@@ -56,23 +48,16 @@ final class AppModel {
         self.launchAtLogin = launchAtLogin
         self.soundPlayer = soundPlayer ?? SoundPlayer()
 
-        let licensePreferences = LicensePreferencesStore()
-        let loadedLicenseState = licensePreferences.load()
-        let entitlementStore = EntitlementStore(initialState: loadedLicenseState, preferences: licensePreferences)
         let initialLanguage = UserSettings.appLanguage
-        self.entitlementStore = entitlementStore
-        appLanguage = initialLanguage
-        let licensingService = LemonLicenseService(
-            currentState: { entitlementStore.state },
-            currentLanguage: { UserSettings.appLanguage }
-        )
-        self.licensingService = licensingService
-        checkoutService = ProCheckoutService(configuration: licensingService.configuration)
-        let assetLibrary = OverlayAssetLibrary(configuration: licensingService.configuration)
+        let configuration = BackendConfiguration.load()
+        let assetLibrary = OverlayAssetLibrary(configuration: configuration)
         self.assetLibrary = assetLibrary
+        supportURL = configuration.supportURL
+        privacyPolicyURL = configuration.privacyPolicyURL
         let initialDownloadedAssets = assetLibrary.loadDownloadedAssets()
         downloadedOverlayAssetRecords = initialDownloadedAssets
 
+        appLanguage = initialLanguage
         preferredSide = UserSettings.preferredSide
         let assignments = UserSettings.animationAssignments
         chargeStartAssetReference = assignments[.chargeStarted] ?? .bundled(.catDoor)
@@ -83,14 +68,9 @@ final class AppModel {
         chargeTargetLevel = UserSettings.chargeTargetLevel
         previewBatteryLevel = 38
         batteryMonitoringAvailable = true
-        currentPowerMode = PowerModeReader.readCurrentMode(isPluggedIn: nil)
+        currentPowerMode = PowerModeReader.fallbackMode()
         lastEventDescription = AppCopy(language: initialLanguage).readyForNextChargingRitual
-        licenseKeyDraft = ""
-        customerEmailDraft = loadedLicenseState.customerEmail ?? ""
-        maskedLicenseKey = licensingService.snapshot(allowsAuthenticationUI: false).maskedLicenseKey
-        licenseInfoMessage = nil
-        licenseErrorMessage = nil
-        licenseActivityText = nil
+        launchAtLoginErrorMessage = nil
         assetLibraryInfoMessage = nil
         assetLibraryErrorMessage = nil
         assetLibraryActivityText = nil
@@ -101,7 +81,6 @@ final class AppModel {
 
         self.soundPlayer.isEnabled = false
         refreshLaunchAtLoginState()
-        self.entitlementStore.apply(licensingService.sanitizeInitialState(loadedLicenseState))
         sanitizeAnimationAssignments()
     }
 
@@ -139,67 +118,16 @@ final class AppModel {
         AppCopy(language: appLanguage)
     }
 
-    var licenseState: LicenseState {
-        entitlementStore.state
-    }
-
-    var licenseConfiguration: LicensingConfiguration {
-        licensingService.configuration
-    }
-
-    var canStartProCheckout: Bool {
-        licenseConfiguration.hasCheckoutEntryPoint
-    }
-
     var canCustomizeAnimations: Bool {
-        entitlementStore.isEnabled(.animationCustomization)
+        true
     }
 
     var canManageDownloadableAssets: Bool {
-        entitlementStore.isEnabled(.downloadableAssets)
+        true
     }
 
     var hasAssetCatalog: Bool {
-        licenseConfiguration.assetCatalogURL != nil
-    }
-
-    var hasStoredLicense: Bool {
-        licenseState.status != .free || licenseState.lastKnownTier == .pro || maskedLicenseKey != nil
-    }
-
-    var isLicenseBusy: Bool {
-        licenseActivityText != nil
-    }
-
-    var licenseWarningText: String {
-        copy.title(for: licenseState.warningState)
-    }
-
-    var licenseSummaryText: String {
-        switch licenseState.status {
-        case .free:
-            return copy.coreFeaturesStayFree
-        case .proVerified:
-            return copy.fullyVerified(productName: licenseConfiguration.productName)
-        case .proCached:
-            return copy.cachedProSummary
-        case .revoked:
-            return copy.revokedProSummary
-        case .invalid:
-            return copy.invalidProSummary
-        }
-    }
-
-    var licenseLastValidatedText: String {
-        formatted(date: licenseState.lastValidatedAt)
-    }
-
-    var licenseLastAttemptText: String {
-        formatted(date: licenseState.lastValidationAttemptAt)
-    }
-
-    var licenseNextRetryText: String {
-        formatted(date: licenseState.nextRetryAt)
+        assetLibrary.hasAssetCatalog
     }
 
     func bind(overlayPresenter: any OverlayPresenting) {
@@ -223,9 +151,9 @@ final class AppModel {
 
     func start() {
         Task {
-            await refreshLicense(force: false, reason: "launch", showsProgress: false)
             await refreshDownloadableAssets(showsProgress: false)
         }
+        refreshPowerMode()
     }
 
     func updatePreferredSide(_ side: ScreenSide) {
@@ -251,17 +179,12 @@ final class AppModel {
     }
 
     func assetReference(for event: OverlayEventKind) -> OverlayAssetReference {
-        let storedReference: OverlayAssetReference = switch event {
+        switch event {
         case .chargeStarted:
-            chargeStartAssetReference
+            return chargeStartAssetReference
         case .fullyCharged:
-            fullChargeAssetReference
+            return fullChargeAssetReference
         }
-
-        if canCustomizeAnimations {
-            return storedReference
-        }
-        return event.defaultAssetReference
     }
 
     func resolvedAsset(for event: OverlayEventKind) -> InstalledOverlayAsset {
@@ -296,8 +219,6 @@ final class AppModel {
         for event: OverlayEventKind,
         to reference: OverlayAssetReference
     ) {
-        guard canCustomizeAnimations else { return }
-
         switch event {
         case .chargeStarted:
             chargeStartAssetReference = reference
@@ -332,12 +253,7 @@ final class AppModel {
     }
 
     func downloadOverlayAsset(_ asset: OverlayAssetCatalogEntry) async {
-        guard canManageDownloadableAssets else { return }
         guard downloadingAssetIDs.contains(asset.id) == false else { return }
-        guard let authorization = licensingService.assetDownloadAuthorization(allowsAuthenticationUI: true) else {
-            assetLibraryErrorMessage = copy.noSavedProLicense
-            return
-        }
 
         downloadingAssetIDs.insert(asset.id)
         assetLibraryInfoMessage = nil
@@ -354,7 +270,6 @@ final class AppModel {
         do {
             downloadedOverlayAssetRecords = try await assetLibrary.download(
                 asset,
-                authorization: authorization,
                 downloadedAssets: downloadedOverlayAssetRecords
             )
             installedOverlayAssets = assetLibrary.installedAssets(downloadedAssets: downloadedOverlayAssetRecords)
@@ -413,8 +328,8 @@ final class AppModel {
     func updateBattery(_ snapshot: BatterySnapshot?) {
         latestBattery = snapshot
         batteryMonitoringAvailable = snapshot != nil
-        currentPowerMode = PowerModeReader.readCurrentMode(isPluggedIn: snapshot?.isPluggedIn)
         onMenuBarStateChanged?()
+        schedulePowerModeRefresh(isPluggedIn: snapshot?.isPluggedIn)
 
         guard snapshot == nil else {
             if lastEventDescription == copy.noBatteryDetectedPreviewStillWorks {
@@ -429,8 +344,7 @@ final class AppModel {
     }
 
     func refreshPowerMode() {
-        currentPowerMode = PowerModeReader.readCurrentMode(isPluggedIn: latestBattery?.isPluggedIn)
-        onMenuBarStateChanged?()
+        schedulePowerModeRefresh(isPluggedIn: latestBattery?.isPluggedIn)
     }
 
     func trigger(_ kind: OverlayEventKind, level: Int? = nil, source: String = "preview") {
@@ -475,356 +389,6 @@ final class AppModel {
         lastTriggerKind = nil
     }
 
-    func startUpgradeToPro() async {
-        guard isLicenseBusy == false else { return }
-
-        licenseRevision += 1
-        let currentRevision = licenseRevision
-        checkoutPollingTask?.cancel()
-        licenseInfoMessage = nil
-        licenseErrorMessage = nil
-
-        guard licenseConfiguration.hasCheckoutEntryPoint else {
-            licenseErrorMessage = copy.checkoutBackendUnavailable
-            return
-        }
-
-        guard licenseConfiguration.checkoutSessionsURL != nil else {
-            licensingService.open(licenseConfiguration.checkoutURL)
-            licenseInfoMessage = copy.checkoutOpenedInBrowser
-            return
-        }
-        licenseActivityText = copy.preparingSecureCheckout
-
-        do {
-            let installationID = licensingService.installationID()
-            let checkoutSession = try await checkoutService.createCheckoutSession(
-                installationId: installationID,
-                customerEmail: customerEmailDraft,
-                appVersion: appVersionString
-            )
-            guard licenseRevision == currentRevision else { return }
-
-            licensingService.open(checkoutSession.checkoutURL)
-            licenseInfoMessage = copy.checkoutOpenedInBrowser
-            licenseErrorMessage = nil
-            licenseActivityText = copy.waitingForCheckoutCompletion
-            beginCheckoutPolling(
-                sessionID: checkoutSession.sessionID,
-                installationID: installationID,
-                currentRevision: currentRevision,
-                immediate: false
-            )
-        } catch let error as ProCheckoutError {
-            guard licenseRevision == currentRevision else { return }
-            licenseActivityText = nil
-            licenseErrorMessage = localizedMessage(for: error)
-        } catch {
-            guard licenseRevision == currentRevision else { return }
-            licenseActivityText = nil
-            licenseErrorMessage = error.localizedDescription
-        }
-    }
-
-    func handleExternalURL(_ url: URL) {
-        guard url.scheme?.lowercased() == LicensingConfiguration.appURLScheme else { return }
-        let host = (url.host ?? "").lowercased()
-        let path = url.path.lowercased()
-        guard host == "checkout-complete" || path == "/checkout-complete" else { return }
-
-        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let sessionID = components.queryItems?.first(where: { $0.name == "session_id" })?.value,
-              sessionID.isEmpty == false else {
-            return
-        }
-
-        licenseRevision += 1
-        let currentRevision = licenseRevision
-        licenseInfoMessage = copy.checkoutOpenedInBrowser
-        licenseErrorMessage = nil
-        licenseActivityText = copy.waitingForCheckoutCompletion
-        beginCheckoutPolling(
-            sessionID: sessionID,
-            installationID: licensingService.installationID(),
-            currentRevision: currentRevision,
-            immediate: true
-        )
-    }
-
-    func openMyOrders() {
-        licensingService.open(licenseConfiguration.myOrdersURL)
-    }
-
-    func openSupport() {
-        licensingService.open(licenseConfiguration.supportURL)
-    }
-
-    func activateLicense() async {
-        guard isLicenseBusy == false else { return }
-
-        licenseRevision += 1
-        let currentRevision = licenseRevision
-        checkoutPollingTask?.cancel()
-        licenseInfoMessage = nil
-        licenseErrorMessage = nil
-        licenseActivityText = copy.activatingOnThisMac
-
-        defer {
-            if licenseRevision == currentRevision {
-                licenseActivityText = nil
-            }
-        }
-
-        do {
-            let state = try await licensingService.activate(
-                licenseKey: licenseKeyDraft,
-                customerEmail: customerEmailDraft
-            )
-            guard licenseRevision == currentRevision else { return }
-
-            entitlementStore.apply(state)
-            maskedLicenseKey = maskLicenseKey(licenseKeyDraft)
-            licenseKeyDraft = ""
-            customerEmailDraft = state.customerEmail ?? customerEmailDraft
-            licenseInfoMessage = copy.fullyVerified(productName: licenseConfiguration.productName)
-            licenseErrorMessage = nil
-        } catch let error as LicensingError {
-            guard licenseRevision == currentRevision else { return }
-            if entitlementStore.state.hasProAccess == false, let suggestedState = error.suggestedState {
-                entitlementStore.apply(suggestedState)
-            }
-            licenseErrorMessage = localizedMessage(for: error)
-        } catch {
-            guard licenseRevision == currentRevision else { return }
-            licenseErrorMessage = error.localizedDescription
-        }
-    }
-
-    func refreshLicense(
-        force: Bool,
-        reason: String,
-        showsProgress: Bool
-    ) async {
-        let currentRevision = licenseRevision
-
-        if force == false,
-           let lastValidatedAt = entitlementStore.state.lastValidatedAt,
-           Date().timeIntervalSince(lastValidatedAt) < LicensingConfiguration.defaultValidationInterval {
-            entitlementStore.apply(entitlementStore.state.refreshedWarning())
-            return
-        }
-
-        if showsProgress, licenseActivityText == nil {
-            licenseActivityText = copy.refreshingProStatus
-        }
-
-        let state = await licensingService.validateCachedLicense(
-            force: force,
-            allowsAuthenticationUI: showsProgress
-        )
-        guard licenseRevision == currentRevision else { return }
-
-        entitlementStore.apply(state)
-        if showsProgress {
-            maskedLicenseKey = licensingService.snapshot(allowsAuthenticationUI: true).maskedLicenseKey ?? maskedLicenseKey
-        }
-        if let customerEmail = state.customerEmail, customerEmail.isEmpty == false {
-            customerEmailDraft = customerEmail
-        }
-
-        if showsProgress {
-            licenseInfoMessage = state.status == .proVerified ? copy.proUpToDate : nil
-        }
-
-        if let lastErrorMessage = state.lastErrorMessage, state.status == .proCached {
-            licenseErrorMessage = lastErrorMessage
-        } else {
-            licenseErrorMessage = nil
-        }
-
-        if showsProgress {
-            licenseActivityText = nil
-        }
-
-        if reason == "launch", state.status == .proVerified {
-            licenseInfoMessage = nil
-        }
-    }
-
-    func deactivateCurrentMac() async {
-        guard isLicenseBusy == false else { return }
-
-        licenseRevision += 1
-        let currentRevision = licenseRevision
-        checkoutPollingTask?.cancel()
-        licenseInfoMessage = nil
-        licenseErrorMessage = nil
-        licenseActivityText = copy.removingThisMacFromLemon
-
-        defer {
-            if licenseRevision == currentRevision {
-                licenseActivityText = nil
-            }
-        }
-
-        do {
-            let state = try await licensingService.deactivateCurrentMac()
-            guard licenseRevision == currentRevision else { return }
-
-            entitlementStore.apply(state)
-            maskedLicenseKey = nil
-            licenseKeyDraft = ""
-            customerEmailDraft = ""
-            licenseInfoMessage = copy.removedThisMacFromPro
-        } catch let error as LicensingError {
-            guard licenseRevision == currentRevision else { return }
-            licenseErrorMessage = localizedMessage(for: error)
-        } catch {
-            guard licenseRevision == currentRevision else { return }
-            licenseErrorMessage = error.localizedDescription
-        }
-    }
-
-    private func beginCheckoutPolling(
-        sessionID: String,
-        installationID: String,
-        currentRevision: Int,
-        immediate: Bool
-    ) {
-        checkoutPollingTask?.cancel()
-        checkoutPollingTask = Task { [weak self] in
-            await self?.pollCheckoutSession(
-                sessionID: sessionID,
-                installationID: installationID,
-                currentRevision: currentRevision,
-                immediate: immediate
-            )
-        }
-    }
-
-    private func pollCheckoutSession(
-        sessionID: String,
-        installationID: String,
-        currentRevision: Int,
-        immediate: Bool
-    ) async {
-        let startedAt = Date()
-        var shouldDelay = immediate == false
-        var lastTransientError: String?
-
-        while Task.isCancelled == false,
-              Date().timeIntervalSince(startedAt) < 15 * 60 {
-            if shouldDelay {
-                do {
-                    try await Task.sleep(for: .seconds(3))
-                } catch {
-                    return
-                }
-            } else {
-                shouldDelay = true
-            }
-
-            guard licenseRevision == currentRevision else { return }
-
-            do {
-                let session = try await checkoutService.fetchCheckoutSession(
-                    id: sessionID,
-                    installationId: installationID
-                )
-                guard licenseRevision == currentRevision else { return }
-
-                switch session.status {
-                case .pending:
-                    licenseActivityText = copy.waitingForCheckoutCompletion
-
-                case .ready:
-                    if hasStoredLicense || entitlementStore.state.hasProAccess {
-                        _ = try? await checkoutService.claimCheckoutSession(
-                            id: sessionID,
-                            installationId: installationID
-                        )
-                        guard licenseRevision == currentRevision else { return }
-                        licenseActivityText = nil
-                        licenseInfoMessage = copy.alreadyUnlockedOnThisMac
-                        licenseErrorMessage = nil
-                        return
-                    }
-
-                    guard let licenseKey = session.licenseKey else {
-                        licenseActivityText = nil
-                        licenseErrorMessage = ProCheckoutError.invalidResponse.localizedDescription
-                        return
-                    }
-
-                    licenseActivityText = copy.finishingCheckoutActivation
-
-                    do {
-                        let state = try await licensingService.activate(
-                            licenseKey: licenseKey,
-                            customerEmail: session.customerEmail ?? customerEmailDraft
-                        )
-                        _ = try? await checkoutService.claimCheckoutSession(
-                            id: sessionID,
-                            installationId: installationID
-                        )
-                        guard licenseRevision == currentRevision else { return }
-
-                        entitlementStore.apply(state)
-                        maskedLicenseKey = maskLicenseKey(licenseKey)
-                        licenseKeyDraft = ""
-                        customerEmailDraft = state.customerEmail ?? customerEmailDraft
-                        licenseInfoMessage = copy.proActivatedFromCheckout(productName: licenseConfiguration.productName)
-                        licenseErrorMessage = nil
-                        licenseActivityText = nil
-                        return
-                    } catch let error as LicensingError {
-                        guard licenseRevision == currentRevision else { return }
-                        licenseActivityText = nil
-                        licenseKeyDraft = licenseKey
-                        customerEmailDraft = session.customerEmail ?? customerEmailDraft
-                        licenseErrorMessage = localizedMessage(for: error)
-                        return
-                    } catch {
-                        guard licenseRevision == currentRevision else { return }
-                        licenseActivityText = nil
-                        licenseKeyDraft = licenseKey
-                        customerEmailDraft = session.customerEmail ?? customerEmailDraft
-                        licenseErrorMessage = error.localizedDescription
-                        return
-                    }
-
-                case .claimed:
-                    licenseActivityText = nil
-                    licenseInfoMessage = entitlementStore.state.hasProAccess ? copy.alreadyUnlockedOnThisMac : licenseInfoMessage
-                    licenseErrorMessage = nil
-                    return
-
-                case .expired:
-                    licenseActivityText = nil
-                    licenseErrorMessage = copy.checkoutSessionExpired
-                    return
-
-                case .failed:
-                    licenseActivityText = nil
-                    licenseErrorMessage = session.lastError ?? copy.checkoutBackendUnavailable
-                    return
-                }
-            } catch let error as ProCheckoutError {
-                lastTransientError = localizedMessage(for: error)
-            } catch {
-                lastTransientError = error.localizedDescription
-            }
-        }
-
-        guard licenseRevision == currentRevision else { return }
-        licenseActivityText = nil
-        if let lastTransientError {
-            licenseErrorMessage = lastTransientError
-        } else {
-            licenseInfoMessage = copy.checkoutStillWaiting
-        }
-    }
-
     private func shouldThrottle(kind: OverlayEventKind, source: String) -> Bool {
         guard source == "system",
               let lastTriggerAt,
@@ -838,6 +402,16 @@ final class AppModel {
 
     private func refreshLaunchAtLoginState() {
         launchAtLoginEnabled = launchAtLogin.isEnabled || UserSettings.launchAtLoginEnabled
+    }
+
+    private func schedulePowerModeRefresh(isPluggedIn: Bool?) {
+        powerModeRefreshTask?.cancel()
+        powerModeRefreshTask = Task { [weak self] in
+            let powerMode = await PowerModeReader.readCurrentModeAsync(isPluggedIn: isPluggedIn)
+            guard Task.isCancelled == false, let self else { return }
+            self.currentPowerMode = powerMode
+            self.onMenuBarStateChanged?()
+        }
     }
 
     private func persistAnimationAssignments() {
@@ -886,39 +460,6 @@ final class AppModel {
         }
     }
 
-    private func formatted(date: Date?) -> String {
-        guard let date else { return copy.notYet }
-
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        formatter.locale = Locale(identifier: appLanguage.localeIdentifier)
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
-
-    private func localizedMessage(for error: LicensingError) -> String {
-        switch error {
-        case .notConfigured:
-            return copy.proCheckoutNotConfigured
-        case .missingStoredLicense:
-            return copy.noSavedProLicense
-        case let .invalid(message, _),
-             let .revoked(message, _),
-             let .transient(message):
-            return message
-        }
-    }
-
-    private func localizedMessage(for error: ProCheckoutError) -> String {
-        switch error {
-        case .notConfigured:
-            return copy.checkoutBackendUnavailable
-        case .invalidResponse:
-            return copy.checkoutBackendUnavailable
-        case let .server(message):
-            return message
-        }
-    }
-
     private func localizedAssetMessage(for error: Error) -> String {
         if let error = error as? OverlayAssetLibraryError {
             switch error {
@@ -933,19 +474,5 @@ final class AppModel {
             }
         }
         return error.localizedDescription
-    }
-
-    private func maskLicenseKey(_ licenseKey: String) -> String? {
-        let trimmed = licenseKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count > 8 else { return nil }
-        return "\(trimmed.prefix(4))••••\(trimmed.suffix(4))"
-    }
-
-    private var appVersionString: String {
-        if let value = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
-           value.isEmpty == false {
-            return value
-        }
-        return "dev"
     }
 }

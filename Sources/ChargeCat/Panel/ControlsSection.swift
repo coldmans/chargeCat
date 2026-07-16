@@ -28,16 +28,10 @@ struct ControlsSection: View {
                     AnimationAssignmentRow(model: model, event: .chargeStarted)
                     AnimationAssignmentRow(model: model, event: .fullyCharged)
 
-                    if model.canCustomizeAnimations == false {
-                        Text(model.copy.proAnimationCustomizationLocked)
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .foregroundStyle(Palette.ink.opacity(0.6))
-                            .fixedSize(horizontal: false, vertical: true)
+                    if model.hasAssetCatalog || model.installedOverlayAssets.contains(where: \.isDownloaded) {
+                        Divider().background(Palette.ink.opacity(0.05))
+                        AnimationDownloadsSection(model: model)
                     }
-
-                    Divider().background(Palette.ink.opacity(0.05))
-
-                    AnimationDownloadsSection(model: model)
                 }
                 .task {
                     await model.refreshDownloadableAssets(showsProgress: false)
@@ -249,25 +243,23 @@ private struct AnimationAssignmentRow: View {
                     .background(Color.white.opacity(0.85), in: Capsule())
             }
 
-            if model.canCustomizeAnimations {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(model.installedOverlayAssets) { asset in
-                            Button {
-                                model.updateAnimationAssignment(for: event, to: asset.reference)
-                            } label: {
-                                SelectionChip(
-                                    title: model.displayTitle(for: asset),
-                                    systemImage: asset.systemImage,
-                                    isSelected: selectedReference == asset.reference
-                                )
-                                .frame(minWidth: 138)
-                            }
-                            .buttonStyle(.plain)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(model.installedOverlayAssets) { asset in
+                        Button {
+                            model.updateAnimationAssignment(for: event, to: asset.reference)
+                        } label: {
+                            SelectionChip(
+                                title: model.displayTitle(for: asset),
+                                systemImage: asset.systemImage,
+                                isSelected: selectedReference == asset.reference
+                            )
+                            .frame(minWidth: 138)
                         }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.vertical, 2)
                 }
+                .padding(.vertical, 2)
             }
         }
         .padding(12)
@@ -300,14 +292,16 @@ private struct AnimationDownloadsSection: View {
 
                 Spacer()
 
-                Button {
-                    Task { await model.refreshDownloadableAssets(showsProgress: true) }
-                } label: {
-                    Label(model.copy.refreshCatalog, systemImage: "arrow.clockwise")
+                if model.hasAssetCatalog {
+                    Button {
+                        Task { await model.refreshDownloadableAssets(showsProgress: true) }
+                    } label: {
+                        Label(model.copy.refreshCatalog, systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Palette.ink.opacity(0.7))
                 }
-                .buttonStyle(.plain)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(Palette.ink.opacity(0.7))
             }
 
             if let message = model.assetLibraryInfoMessage {
@@ -327,15 +321,11 @@ private struct AnimationDownloadsSection: View {
                 }
             }
 
-            if model.hasAssetCatalog == false {
-                Text(model.copy.downloadableAssetsNotConfigured)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(Palette.ink.opacity(0.55))
-            } else if model.downloadableAssetCatalog.isEmpty {
+            if model.hasAssetCatalog, model.downloadableAssetCatalog.isEmpty {
                 Text(model.copy.noDownloadableAnimationsYet)
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(Palette.ink.opacity(0.55))
-            } else {
+            } else if model.hasAssetCatalog {
                 VStack(spacing: 10) {
                     ForEach(model.downloadableAssetCatalog) { asset in
                         DownloadableAssetRow(model: model, asset: asset)
@@ -420,8 +410,8 @@ private struct DownloadableAssetRow: View {
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(model.canManageDownloadableAssets ? Palette.amber : Palette.ink.opacity(0.4))
-                .disabled(model.canManageDownloadableAssets == false || isDownloading)
+                .foregroundStyle(Palette.amber)
+                .disabled(isDownloading)
             }
         }
         .padding(12)

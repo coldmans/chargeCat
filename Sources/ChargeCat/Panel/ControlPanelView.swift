@@ -41,16 +41,16 @@ struct ControlPanelView: View {
                             asset: model.previewAsset,
                             previewStateTitle: model.copy.title(for: model.previewEventKind)
                         )
-                        ProSection(model: model)
                         ControlsSection(model: model)
                         LiveStatusSection(model: model)
+                        legalLinks
                     }
                     .padding(.horizontal, 28)
                     .padding(.bottom, 32)
                 }
             }
         }
-        .frame(width: 460, height: 740)
+        .frame(width: 460, height: 640)
     }
 
     private var header: some View {
@@ -87,5 +87,23 @@ struct ControlPanelView: View {
                 }
             }
         }
+    }
+
+    private var legalLinks: some View {
+        HStack(spacing: 18) {
+            Link(destination: model.supportURL) {
+                Label(model.copy.support, systemImage: "questionmark.circle")
+            }
+
+            Link(destination: model.privacyPolicyURL) {
+                Label(model.copy.privacyPolicy, systemImage: "hand.raised")
+            }
+
+            Spacer()
+        }
+        .font(.system(size: 12, weight: .semibold, design: .rounded))
+        .foregroundStyle(Palette.ink.opacity(0.62))
+        .buttonStyle(.plain)
+        .padding(.horizontal, 4)
     }
 }

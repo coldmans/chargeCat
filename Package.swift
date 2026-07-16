@@ -18,10 +18,6 @@ let package = Package(
             name: "ChargeCat",
             resources: [
                 .process("Resources")
-            ],
-            linkerSettings: [
-                .linkedFramework("Security"),
-                .linkedFramework("Carbon")
             ]
         )
     ]
