@@ -21,7 +21,21 @@ enum PowerMode: String, Equatable {
 }
 
 enum PowerModeReader {
+    static func fallbackMode() -> PowerMode {
+        ProcessInfo.processInfo.isLowPowerModeEnabled ? .lowPower : .unknown
+    }
+
+    static func readCurrentModeAsync(isPluggedIn: Bool?) async -> PowerMode {
+        await Task.detached(priority: .utility) {
+            readCurrentMode(isPluggedIn: isPluggedIn)
+        }.value
+    }
+
     static func readCurrentMode(isPluggedIn: Bool?) -> PowerMode {
+        #if APP_STORE
+        _ = isPluggedIn
+        return fallbackMode()
+        #else
         let processInfoLowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
         let settings = readPowerModeSettings()
 
@@ -37,8 +51,10 @@ enum PowerModeReader {
         }
 
         return selectedMode ?? .unknown
+        #endif
     }
 
+    #if !APP_STORE
     private static func readPowerModeSettings() -> (
         batteryPower: PowerMode?,
         acPower: PowerMode?,
@@ -50,7 +66,8 @@ enum PowerModeReader {
 
         let outputPipe = Pipe()
         process.standardOutput = outputPipe
-        process.standardError = Pipe()
+        process.standardError = outputPipe
+        let outputHandle = outputPipe.fileHandleForReading
 
         do {
             try process.run()
@@ -58,11 +75,12 @@ enum PowerModeReader {
             return (nil, nil, nil)
         }
 
+        let outputData = outputHandle.readDataToEndOfFile()
         process.waitUntilExit()
 
         guard
             process.terminationStatus == 0,
-            let output = String(data: outputPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
+            let output = String(data: outputData, encoding: .utf8)
         else {
             return (nil, nil, nil)
         }
@@ -112,4 +130,5 @@ enum PowerModeReader {
             return .unknown
         }
     }
+    #endif
 }
