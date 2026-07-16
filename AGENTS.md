@@ -8,21 +8,21 @@
 
 ## 1. 프로젝트 개요
 
-ChargeCat은 맥북 사용자가 충전기를 꽂을 때 화면 구석에 작은 고양이 애니메이션을 띄워주는 macOS 메뉴바 앱입니다. v1.0.1 출시 시점에 Pro 기능(이벤트별 애니메이션 + 다운로드 가능 팩)이 추가되었고, 라이선스/결제를 처리하는 자체 백엔드가 붙었습니다.
+ChargeCat은 맥북 사용자가 충전기를 꽂을 때 화면 구석에 작은 고양이 애니메이션을 띄워주는 macOS 메뉴바 앱입니다. 현재 배포 방향은 **무료 배포**입니다. 이벤트별 애니메이션 변경과 다운로드 가능 팩은 모두 무료 기능이며, 결제/라이선스 흐름은 제거되어 있습니다.
 
 구성 요소:
 
 - **macOS 앱 (Swift / SwiftUI)** — `Sources/ChargeCat/`
   - `App/` 앱 상태(`AppModel`), `Battery/` 충전 감지, `Overlay/` 오버레이 표시
-  - `Panel/` 제어판 UI, `Animation/` 에셋 로딩·재생, `Licensing/` Lemon/Toss 라이선스
+  - `Panel/` 제어판 UI, `Animation/` 에셋 로딩·재생, `Shared/BackendConfiguration.swift` 다운로드 catalog 설정
   - `Settings/` UserDefaults 래퍼, `Shared/AppLanguage.swift` 로컬라이제이션
 - **백엔드 (Node.js 25 + Express 5)** — `backend/src/`
-  - `app.js` 엔드포인트, `database.js` DB 레이어, `lemon-client.js` / `toss-client.js` 결제, `validators.js` zod 스키마, `html.js` 체크아웃 페이지 렌더링
-  - 현재 SQLite(`node:sqlite`) 사용 중, MySQL(도커)로 이관 진행 중
+  - `app.js` 공개 asset catalog/download 엔드포인트, `config.js` 환경 설정, `validators.js` zod 스키마
+  - DB, Lemon/Toss 결제, 라이선스 활성화, checkout 페이지는 현재 사용하지 않음
 - **랜딩 페이지** — 루트 `index.html` (GitHub Pages)
-- **배포 자산** — `Casks/charge-cat.rb` Homebrew cask, `scripts/build-release.sh` DMG 빌드
+- **배포 자산** — `ChargeCat.xcodeproj` App Store 타깃, `scripts/build-app-store.sh` App Store 아카이브, `Casks/charge-cat.rb` Homebrew cask, `scripts/build-release.sh` DMG 빌드
 
-외부 의존성: Lemon Squeezy(글로벌 결제·웹훅), Toss Payments(국내 결제), GitHub Releases(DMG 배포), Homebrew(설치 경로).
+외부 의존성: Mac App Store, GitHub Releases(DMG 배포), Homebrew(설치 경로), 선택적 asset catalog 백엔드.
 
 ---
 
@@ -80,22 +80,15 @@ ChargeCat은 맥북 사용자가 충전기를 꽂을 때 화면 구석에 작은
 
 ---
 
-## 6. Pro 기능 관련 아키텍처 제약
+## 6. 무료 배포 관련 아키텍처 제약
 
-Pro 기능을 건드리는 변경은 세 곳이 동시에 맞물립니다. 하나라도 빠지면 앱이 반쪽으로 출시됩니다.
+- 결제, 라이선스 키, Pro paywall을 새로 추가하지 않는다. 필요하면 별도 사용자 확인을 먼저 받는다.
+- 이벤트별 애니메이션 변경과 추가 팩 다운로드는 무료 사용자에게 항상 열려 있어야 한다.
+- 기본 bundled 애니메이션은 백엔드 연결 없이 항상 동작해야 한다.
+- 추가 애니메이션 catalog는 선택 기능이다. `backend-config.json`에 catalog URL이 없으면 앱은 조용히 기본 에셋만 보여준다.
+- 백엔드 다운로드 엔드포인트는 라이선스 헤더를 요구하지 않는다.
 
-1. **Swift 앱**
-   - `Licensing/LicenseState.swift`의 `ProFeature` enum에 기능 추가
-   - `Licensing/EntitlementStore.swift`에서 entitlement 분기
-   - `AppModel` / UI에서 `canCustomizeAnimations` 같은 computed property 게이트
-2. **백엔드**
-   - 필요한 경우 라이선스·자산 엔드포인트 추가 (`backend/src/app.js`)
-   - 스키마 검증을 `validators.js`에 둔다
-3. **문서·카피**
-   - `Shared/AppLanguage.swift`에 한·영 카피 추가
-   - 필요 시 `index.html` Pro 섹션 업데이트
-
-Free 사용자 경로는 절대 깨뜨리지 않는다. 기본값(bundled 애니메이션)은 항상 동작해야 한다.
+UI/문서/백엔드 중 하나라도 유료 흐름을 다시 암시하지 않게 같이 정리한다.
 
 ---
 
@@ -115,6 +108,7 @@ Swift 앱:
 ```bash
 swift build
 swift test
+scripts/build-app-store.sh <version> <build-number>
 scripts/build-release.sh   # DMG 빌드 + Cask 자동 패치
 ```
 
@@ -122,13 +116,12 @@ scripts/build-release.sh   # DMG 빌드 + Cask 자동 패치
 
 ---
 
-## 8. 현재 진행 중인 이관
+## 8. 현재 진행 중인 정리
 
-**SQLite → MySQL 이관 (Docker Compose)**
+**무료 배포 전환**
 
-- 목표: 백엔드를 Azure Container Apps에 배포하기 위해 파일 기반 SQLite를 제거하고 MySQL로 전환
-- 이관 대상 파일: `backend/src/database.js`(617줄), `backend/src/app.js`의 30여 개 호출부, `backend/.env.example`, `backend/package.json`
-- 로컬 개발은 `docker-compose.yml`로 `mysql:8` 컨테이너 + 볼륨
+- 결제/라이선스/DB 스택은 제거하고, 앱은 기본 기능과 추가 애니메이션 팩을 무료로 제공한다.
+- 백엔드는 선택적 공개 asset catalog/download 서버로만 유지한다.
 - 세부 진행 상황은 `.codex/TASK.md` 참조
 
 ---

@@ -4,6 +4,8 @@
 
 ```
 chargeCat/
+├── ChargeCat.xcodeproj/                  # Mac App Store 전용 앱 타깃
+├── Config/                               # Info.plist, entitlements, export options
 ├── Package.swift
 ├── Sources/
 │   └── ChargeCat/
@@ -76,6 +78,7 @@ chargeCat/
 │   └── ARCHITECTURE.md
 │
 ├── scripts/
+│   ├── build-app-store.sh
 │   └── build-release.sh
 │
 ├── Casks/

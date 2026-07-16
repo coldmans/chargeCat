@@ -108,7 +108,7 @@
 ### 4.3 Nice to Have (v1.1+)
 
 #### F-12: 추가 고양이 캐릭터/스킨
-- 유료 업그레이드로 잠금 해제
+- 모든 사용자에게 무료 제공
 - v1.1에서 2~3마리 추가
 
 #### F-13: 계절/시간대별 문 디자인
@@ -131,27 +131,20 @@
 - 모든 기본 기능 무료 제공
 - 바이럴 확산 우선
 
-### v1.1+: 유료 업그레이드 ($3.99 일회성)
-무료:
-- 기본 고양이 1마리
-- 충전 시작 애니메이션 3종 랜덤
-- 좌/우 위치 선택
-- 사운드 on/off
-
-유료 잠금 해제:
-- 추가 애니메이션 (3~5종)
+### v1.1+: 무료 기능 확장
+- 추가 애니메이션 팩
 - 충전 완료 전용 애니메이션
 - 추가 고양이 캐릭터
-- 향후 업데이트 포함
+- 접근성과 안정성 개선
 
 ---
 
 ## 6. Distribution
 
-- **Primary:** GitHub Releases (.dmg 직접 다운로드)
+- **Primary:** Mac App Store (무료)
+- **Secondary:** GitHub Releases (.dmg 직접 다운로드)
 - **Secondary:** Homebrew Cask (`brew install --cask charge-cat`)
 - **Landing page:** GitHub Pages (`coldmans.github.io/chargeCat`)
-- **No App Store** (심사 리스크 회피, 수수료 절감)
 
 ---
 
@@ -159,7 +152,7 @@
 
 - Swift 6.2+ / macOS 14+ (Sonoma)
 - SwiftUI + AppKit hybrid (오버레이는 AppKit NSPanel 필수)
-- 서버 없음 (완전 로컬)
+- 기본 기능은 완전 로컬, 추가 애니메이션 catalog 서버는 선택 사항
 - 외부 의존성 없음 (Swift Package Manager, 서드파티 라이브러리 0)
 - 유휴 시 CPU 사용 ~0% (IOKit 콜백 기반, 타이머는 15초 간격 fallback)
 - 메모리 < 30MB

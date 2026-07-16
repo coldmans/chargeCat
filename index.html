@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="Sources/ChargeCat/Resources/Assets.xcassets/AppIcon.appiconset/icon_32x32.png">
   <title>Charge Cat — 맥에 작은 고양이가 산다</title>
   <meta name="description" content="충전기를 꽂을 때마다 작은 문에서 고양이가 빼꼼 나타나요. 하루에 2초, 귀여움 한 스푼.">
   <meta property="og:title" content="Charge Cat — 맥에 작은 고양이가 산다">
@@ -628,7 +629,6 @@
       <li><a href="#how" data-i18n="nav.how">사용 방법</a></li>
       <li><a href="#install" data-i18n="nav.install">설치</a></li>
       <li><a href="https://github.com/coldmans/chargeCat" target="_blank">GitHub</a></li>
-      <li><a href="#" class="nav-cta is-disabled" id="buy-pro-nav" data-i18n="nav.buyPro">Pro 구매</a></li>
       <li><a href="#install" class="nav-cta" data-i18n="nav.download">무료 다운로드</a></li>
     </ul>
   </nav>
@@ -643,7 +643,6 @@
         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
         <span data-i18n="hero.ctaDownload">Mac용 다운로드</span>
       </a>
-      <a href="#" class="btn-secondary is-disabled" id="buy-pro-hero" data-i18n="hero.ctaPro">Pro 구매</a>
       <a href="#how" class="btn-secondary" data-i18n="hero.ctaHow">어떻게 동작하나요?</a>
     </div>
     <p class="hero-meta" data-i18n="hero.meta">무료 · macOS 14+ · 가입 불필요</p>
@@ -746,17 +745,17 @@
     </div>
   </section>
 
-  <!-- Pro -->
+  <!-- Free -->
   <section class="pro-strip fade-up">
     <div class="pro-card">
-      <p class="section-title" data-i18n="pro.eyebrow">Charge Cat Pro</p>
-      <h3 data-i18n="pro.heading">핵심 기능은 계속 무료. 프리미엄은 따로.</h3>
-      <p data-i18n="pro.body">국내 결제는 Toss로 빠르게, 글로벌 체크아웃은 Lemon으로 이어갈 수 있어요. 앱 안에서 시작한 구매는 같은 Mac에서 Pro가 자동으로 활성화됩니다.</p>
+      <p class="section-title" data-i18n="free.eyebrow">무료 배포</p>
+      <h3 data-i18n="free.heading">Pro 없이 전부 열어둘게요.</h3>
+      <p data-i18n="free.body">이벤트별 애니메이션 변경과 추가 팩 다운로드까지 모두 무료로 사용할 수 있어요. 결제 계정이나 라이선스 키도 필요 없습니다.</p>
       <div class="pro-actions">
-        <a href="#" class="btn-primary is-disabled" id="buy-pro-section" data-i18n="pro.buy">Pro 구매</a>
-        <a href="https://app.lemonsqueezy.com/my-orders" class="btn-secondary" id="pro-secondary-link" target="_blank" rel="noreferrer" data-i18n="pro.myOrders">내 주문 보기</a>
+        <a href="#install" class="btn-primary" data-i18n="free.download">무료 다운로드</a>
+        <a href="https://github.com/coldmans/chargeCat/issues" class="btn-secondary" target="_blank" rel="noreferrer" data-i18n="free.feedback">피드백</a>
       </div>
-      <p class="pro-note" id="pro-config-note" data-i18n="pro.note">Toss 또는 Lemon 설정이 완료되면 이 자리에 결제 링크가 표시돼요.</p>
+      <p class="pro-note" data-i18n="free.note">결제 기능은 잠시 제거했고, Charge Cat 자체를 더 편하게 다듬는 데 집중합니다.</p>
     </div>
   </section>
 
@@ -769,6 +768,7 @@
     <ul class="footer-links">
       <li><a href="https://github.com/coldmans/chargeCat" target="_blank">GitHub</a></li>
       <li><a href="https://github.com/coldmans/chargeCat/issues" target="_blank" data-i18n="footer.feedback">피드백</a></li>
+      <li><a href="privacy.html" data-i18n="footer.privacy">개인정보 처리방침</a></li>
     </ul>
   </footer>
 
@@ -777,7 +777,6 @@
       ko: {
         'nav.how': '사용 방법',
         'nav.install': '설치',
-        'nav.buyPro': 'Pro 구매',
         'nav.download': '무료 다운로드',
         'hero.badge': 'macOS 메뉴바 앱',
         'hero.titlePre': '내 맥에 작은 ',
@@ -785,7 +784,6 @@
         'hero.titlePost': '가 살고 있어요.',
         'hero.sub': '충전기를 꽂을 때마다 작은 문에서 고양이가 빼꼼 나타나요. 하루에 가장 귀여운 2초.',
         'hero.ctaDownload': 'Mac용 다운로드',
-        'hero.ctaPro': 'Pro 구매',
         'hero.ctaHow': '어떻게 동작하나요?',
         'hero.meta': '무료 · macOS 14+ · 가입 불필요',
         'demo.label': '화면 구석 오버레이',
@@ -816,22 +814,20 @@
         'install.direct': '직접 다운로드',
         'install.dmg': '.dmg 다운로드',
         'install.meta': 'v1.0.1 · Universal Binary · 약 93 MB',
-        'pro.eyebrow': 'Charge Cat Pro',
-        'pro.heading': '핵심 기능은 계속 무료. 프리미엄은 따로.',
-        'pro.body': '국내 결제는 Toss로 빠르게, 글로벌 체크아웃은 Lemon으로 이어갈 수 있어요. 앱 안에서 시작한 구매는 같은 Mac에서 Pro가 자동으로 활성화됩니다.',
-        'pro.buy': 'Pro 구매',
-        'pro.myOrders': '내 주문 보기',
-        'pro.global': '글로벌 결제',
-        'pro.note': 'Toss 또는 Lemon 설정이 완료되면 이 자리에 결제 링크가 표시돼요.',
-        'pro.noteLive': '국내 결제는 Toss, 글로벌 체크아웃은 Lemon으로 연결됩니다. 앱 안에서도 Pro가 자동으로 잠금 해제됩니다.',
+        'free.eyebrow': '무료 배포',
+        'free.heading': 'Pro 없이 전부 열어둘게요.',
+        'free.body': '이벤트별 애니메이션 변경과 추가 팩 다운로드까지 모두 무료로 사용할 수 있어요. 결제 계정이나 라이선스 키도 필요 없습니다.',
+        'free.download': '무료 다운로드',
+        'free.feedback': '피드백',
+        'free.note': '결제 기능은 잠시 제거했고, Charge Cat 자체를 더 편하게 다듬는 데 집중합니다.',
         'footer.madeBy': '따뜻한 마음으로 만든',
         'footer.feedback': '피드백',
+        'footer.privacy': '개인정보 처리방침',
         'title': 'Charge Cat — 맥에 작은 고양이가 산다'
       },
       en: {
         'nav.how': 'How it works',
         'nav.install': 'Install',
-        'nav.buyPro': 'Buy Pro',
         'nav.download': 'Download Free',
         'hero.badge': 'macOS Utility',
         'hero.titlePre': 'Your Mac has a ',
@@ -839,7 +835,6 @@
         'hero.titlePost': ' now.',
         'hero.sub': 'A tiny cat peeks out from a little door every time you plug in your charger. The cutest 2 seconds of your day.',
         'hero.ctaDownload': 'Download for Mac',
-        'hero.ctaPro': 'Buy Pro',
         'hero.ctaHow': 'See how it works',
         'hero.meta': 'Free · macOS 14+ · No sign-up required',
         'demo.label': 'Screen corner overlay',
@@ -870,23 +865,21 @@
         'install.direct': 'Direct download',
         'install.dmg': 'Download .dmg',
         'install.meta': 'v1.0.1 · Universal Binary · ~93 MB',
-        'pro.eyebrow': 'Charge Cat Pro',
-        'pro.heading': 'Keep the core app free. Unlock premium extras separately.',
-        'pro.body': 'Use Toss for the smoothest Korean checkout, or keep Lemon available for global checkout. Purchases started in the app can still unlock Pro automatically on the same Mac.',
-        'pro.buy': 'Buy Pro',
-        'pro.myOrders': 'My Orders',
-        'pro.global': 'Global checkout',
-        'pro.note': 'Checkout links appear here once Toss or Lemon is configured for this site build.',
-        'pro.noteLive': 'Domestic checkout goes through Toss, while global checkout stays available through Lemon. Charge Cat app purchases can also unlock Pro automatically through the backend.',
+        'free.eyebrow': 'Free Distribution',
+        'free.heading': 'Everything is open without Pro.',
+        'free.body': 'Event-specific animation changes and extra pack downloads are free for everyone. No payment account or license key required.',
+        'free.download': 'Download Free',
+        'free.feedback': 'Feedback',
+        'free.note': 'Payment features are removed for now while Charge Cat focuses on the core app experience.',
         'footer.madeBy': 'Made with warmth by',
         'footer.feedback': 'Feedback',
+        'footer.privacy': 'Privacy Policy',
         'title': 'Charge Cat — Your Mac has a cat now.'
       }
     };
 
     var STORAGE_KEY = 'chargecat-lang';
     var supportedLangs = ['ko', 'en'];
-    var licensingSiteConfig = null;
 
     function getInitialLang() {
       try {
@@ -919,14 +912,6 @@
 
       try { localStorage.setItem(STORAGE_KEY, lang); } catch (e) {}
 
-      if (licensingSiteConfig !== null) {
-        applyBuyProUrl(licensingSiteConfig);
-      } else {
-        var note = document.getElementById('pro-config-note');
-        if (note && note.dataset.isLive === 'true') {
-          note.textContent = dict['pro.noteLive'];
-        }
-      }
     }
 
     document.querySelectorAll('.lang-switch button').forEach(function(btn) {
@@ -936,73 +921,6 @@
     });
 
     applyLang(getInitialLang());
-
-    // Pro checkout wiring
-    var buyProButtons = [
-      document.getElementById('buy-pro-nav'),
-      document.getElementById('buy-pro-hero'),
-      document.getElementById('buy-pro-section')
-    ];
-
-    function applyBuyProUrl(config) {
-      var backendBaseUrl = config && config.backendBaseURL ? String(config.backendBaseURL).replace(/\/$/, '') : '';
-      var lemonCheckoutUrl = config && config.checkoutURL ? config.checkoutURL : '';
-      var myOrdersUrl = config && config.myOrdersURL ? config.myOrdersURL : 'https://app.lemonsqueezy.com/my-orders';
-      var supportUrl = config && config.supportURL ? config.supportURL : 'https://github.com/coldmans/chargeCat/issues';
-      var url = backendBaseUrl ? backendBaseUrl + '/buy/pro' : lemonCheckoutUrl;
-
-      buyProButtons.forEach(function(button) {
-        if (!button) return;
-        if (url) {
-          button.href = url;
-          button.target = '_blank';
-          button.rel = 'noreferrer';
-          button.classList.remove('is-disabled');
-        } else {
-          button.href = '#';
-          button.classList.add('is-disabled');
-        }
-      });
-
-      var secondary = document.getElementById('pro-secondary-link');
-      if (secondary) {
-        var secondaryLang = document.documentElement.getAttribute('lang') || 'ko';
-        var secondaryDict = translations[secondaryLang] || translations.ko;
-        if (backendBaseUrl && lemonCheckoutUrl) {
-          secondary.href = backendBaseUrl + '/buy/pro?provider=lemon';
-          secondary.textContent = secondaryDict['pro.global'];
-        } else if (lemonCheckoutUrl) {
-          secondary.href = myOrdersUrl;
-          secondary.textContent = secondaryDict['pro.myOrders'];
-        } else {
-          secondary.href = supportUrl;
-          secondary.textContent = secondaryDict['footer.feedback'];
-        }
-      }
-
-      var note = document.getElementById('pro-config-note');
-      if (!note) return;
-      var lang = document.documentElement.getAttribute('lang') || 'ko';
-      var dict = translations[lang] || translations.ko;
-      if (url) {
-        note.dataset.isLive = 'true';
-        note.textContent = dict['pro.noteLive'];
-      } else {
-        note.dataset.isLive = 'false';
-        note.textContent = dict['pro.note'];
-      }
-    }
-
-    fetch('Sources/ChargeCat/Resources/licensing-config.json')
-      .then(function(response) { return response.ok ? response.json() : null; })
-      .then(function(config) {
-        licensingSiteConfig = config;
-        applyBuyProUrl(config);
-      })
-      .catch(function() {
-        licensingSiteConfig = null;
-        applyBuyProUrl(null);
-      });
 
     function copyCmd(btn, text) {
       navigator.clipboard.writeText(text).then(function() {
